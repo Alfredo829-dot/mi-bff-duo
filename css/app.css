@@ -35,9 +35,11 @@ button.active{background:linear-gradient(135deg,#ff6ec7,#7a3fb0);border:none}
   transform-origin:50% 100%;}
 .char.ruby{animation-delay:.7s,1.1s}
 .char img{display:block;width:100%;height:430px;object-fit:cover;object-position:50% 18%;
-  /* Movimiento de pelo / tela: transform suave sobre la foto, sin recortarla */
-  animation:hair 5.5s ease-in-out infinite;transform-origin:50% 0}
+  /* Baile inspirado en sus videos: cadera de lado a lado, leve inclinacion,
+     rebote suave y pelo fluyendo, sin recortar la foto */
+  animation:dance 5s ease-in-out infinite;transform-origin:50% 100%}
 .char.ruby img{animation-delay:.9s}
+@keyframes dance{0%,100%{transform:scale(1.02) translate(0,0) rotate(0deg)}20%{transform:scale(1.02) translate(-6px,-2px) rotate(-1.2deg)}40%{transform:scale(1.03) translate(5px,-4px) rotate(1deg)}60%{transform:scale(1.02) translate(-4px,-2px) rotate(-.8deg)}80%{transform:scale(1.03) translate(6px,-3px) rotate(1.2deg)}}
 @keyframes breathe{0%,100%{transform:scale(1) rotate(var(--tilt,0deg))}50%{transform:scale(1.018) rotate(var(--tilt,0deg))}}
 @keyframes sway{0%,100%{transform:translateX(0) rotate(-.5deg)}50%{transform:translateX(3px) rotate(.5deg)}}
 @keyframes hair{0%,100%{transform:scale(1.02) translateY(0)}50%{transform:scale(1.03) translateY(-3px)}}
