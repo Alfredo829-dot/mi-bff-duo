@@ -3,9 +3,9 @@
 Nia y Ruby, tus dos BFF virtuales en el mismo cuarto: platica con una, con la otra, o con las dos a la vez. Siempre paradas juntas en el centro del cuarto, sin celular en la mano.
 
 - **Nia** — pelo largo plata/negro, tranquila y dulce. **APIs: Gemini primero, Groq de respaldo.** Las dos ven fotos: su video `vid/nia1.mp4` se reproduce en su tarjeta, bailando de verdad. Para ver fotos usa Gemini (necesita tu llave gratis de Gemini en Ajustes → Llaves).
-- **Ruby** — pelo largo rojo/blanco, atrevida y directa. **APIs: Groq primero, Gemini de respaldo.** También ve fotos con Gemini, igual que Nia. su API no tiene visión.
+- **Ruby** — pelo largo rojo/blanco, atrevida y directa. **APIs: Groq primero, Gemini de respaldo.** También ve fotos con Gemini, igual que Nia.
 - **Respaldo gratis, sin tarjeta:** Pollinations (sin llave) para las dos, si no hay llave o el proveedor falla. Si un modelo ya no existe, se consulta `/models` y se usa otro.
-- **Chat en grupo:** botones Nia / Ruby / Ambas. En modo Ambas, Nia contesta primero con Gemini y Ruby reacciona en una frase corta con Groq. Cada una tiene su propio historial y su voz (Nia más aguda, Ruby más grave).
+- **Chat en grupo:** botones Nia / Ruby / Ambas. En modo Ambas, las dos contestan directo lo que se les preguntó. Cada una tiene su propio historial y su voz (Nia más aguda, Ruby más grave).
 - **Modo +18 (solo texto):** opcional en ⚙, apagado por defecto, con confirmación de mayoría de edad. Límites duros en el prompt y en `guard()`: todo entre adultos, nada con menores (si hay señal de menor, el modo se apaga solo), consentimiento, nada de incesto/bestialidad/personas reales, nunca imágenes. La memoria de largo plazo solo existe en +18: guarda lo que le encantó (máx 30 recuerdos, se retoman los últimos 5 en el prompt), es por reglas (regex), no es memoria real de la IA. También hay detección de tono, generador de escenarios, reacción física y registro de límites (intensidad 1–10 y lista de "no").
 - **Escena:** cuarto fijo con ventana a la ciudad de noche, hecho en CSS. Las dos en el mismo cuadro, en la misma foto-escena, con animaciones CSS sincronizadas: respiración, balanceo, movimiento de pelo, parpadeo estilizado, mirada que sigue al cursor, brillo al hablar y reacción cuando habla la otra. No hay videos, no hay clips, no hay poses por separado: así no se enciman ni se ven mal. No hay modo selfie ni celular en mano.
 - **Voz:** voz del sistema por nombre (en Android suelen ser las de Google) y velocidad 75%–150%, en Ajustes. Micrófono con reconocimiento de voz donde el navegador lo permite.
@@ -13,7 +13,7 @@ Nia y Ruby, tus dos BFF virtuales en el mismo cuarto: platica con una, con la ot
 - **Versión:** una sola constante `VERSION` en `js/app.js`; el service worker se registra como `sw.js?v=VERSION` y nombra su caché con ella. Imágenes: stale-while-revalidate.
 - **Pruebas:** `node tests/guard.test.mjs` (filtro de menores y límites +18, y que Nia usa Gemini y Ruby usa Groq).
 
-Todos los datos se quedan en el dispositivo del usuario (localStorage, prefijo `bffduo_`): `bffduo_cfg`, `bffduo_hist` (máx 200), `bffduo_profile`, `bffduo_memories` (máx 30, solo +18), `bffduo_limits`, `bffduo_groq`, `bffduo_gemini`, `bffduo_models_*`, `bffduo_stats`, `bffduo_ucount`, `bffduo_tone`, `bffduo_scenarios`. Las llaves se guardan solo en el navegador y se mandan directo al proveedor.
+Todos los datos se quedan en el dispositivo del usuario (localStorage, prefijo `bffduo_`): `bffduo_cfg`, `bffduo_hist` (máx 200), `bffduo_profile`, `bffduo_memories` (máx 30, solo +18), `bffduo_limits`, `bffduo_groq`, `bffduo_gemini`, `bffduo_gemini_keys` (hasta 4 llaves Gemini de respaldo), `bffduo_models_*`, `bffduo_stats`, `bffduo_ucount`, `bffduo_tone`, `bffduo_scenarios`. Las llaves se guardan solo en el navegador y se mandan directo al proveedor.
 
 ## Desplegar en GitHub Pages
 

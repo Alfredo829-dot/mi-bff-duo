@@ -132,6 +132,22 @@ export const PROVIDERS={
 };
 export const providerFor = charId => CHARACTERS[charId]?.provider || 'gemini';
 export const provKey = p=>cleanKey(LS.get(PROVIDERS[p].ls,''));
+// Gemini con respaldo: hasta 4 llaves, se prueban en orden hasta que una funcione.
+// La llave vieja (una sola) sigue valiendo: se usa como una mas de la lista.
+export function geminiKeys(){
+  const arr=LS.get('bffduo_gemini_keys',[]);
+  const list=(Array.isArray(arr)?arr:[]).map(cleanKey).filter(Boolean);
+  const single=provKey('gemini');
+  if(single && !list.includes(single)) list.push(single);
+  return list.slice(0,4);
+}
+export function setGeminiKeys(keys){
+  const list=(keys||[]).map(cleanKey).filter(Boolean).slice(0,4);
+  LS.set('bffduo_gemini_keys', list);
+  if(list[0]) LS.set(PROVIDERS.gemini.ls, list[0]); else LS.del(PROVIDERS.gemini.ls);
+  LS.del('bffduo_models_gemini');
+  return list;
+}
 export const anyKey = ()=>Object.keys(PROVIDERS).some(p=>provKey(p));
 export class ProvErr extends Error{ constructor(prov,status,msg){ super(msg); this.prov=prov; this.status=status; } }
 export function provErrText(e){ const n=PROVIDERS[e?.prov]?.name||'La IA', s=e?.status;
@@ -208,8 +224,8 @@ function modelList(prov,adult){ const P=PROVIDERS[prov], c=LS.get('bffduo_models
   if(c&&Date.now()-c.t<864e5&&c.list.length){ const s=pref.filter(m=>c.list.includes(m)); return (s.length?s:c.list).slice(0,3); } return pref.slice(0,2); }
 const REFUSE=/(lo siento,? (pero )?no puedo|no puedo (ayudar|continuar|cumplir|seguir|participar|generar|crear|escribir|hacer eso)|no me es posible|no estoy (programad|autorizad|capacitad)|como (una )?(ia|inteligencia artificial|modelo de lenguaje)|i can.?t (help|assist|continue|comply|do that|engage|write|create)|i(?:'m| am) (sorry|unable|not able)|i won.?t (be able|engage|write|continue)|against (my|the) (guidelines|policy|policies)|contenido (sexual(mente)?|expl[ií]cito)[^.]{0,40}no (puedo|est[aá] permitido)|pol[ií]ticas? de (contenido|uso))/i;
 export const isRefusal=t=>REFUSE.test(String(t||'').slice(0,400));
-async function viaProvider(prov, messages, opts){
-  const key=provKey(prov); let list=modelList(prov,opts.adult), last, refused=0;
+async function viaProviderKey(prov, key, messages, opts){
+  let list=modelList(prov,opts.adult), last, refused=0;
   for(let pass=0;pass<2;pass++){
     for(const m of list){
       const o2=opts.onDelta? {...opts,onDelta:raw=>{ const t=streamClean(raw); if(t.length>=160&&!isRefusal(t)) opts.onDelta(t); }} : opts;
@@ -217,6 +233,22 @@ async function viaProvider(prov, messages, opts){
       catch(e){ last=e; if(e.refusal){ refused++; continue; } if([401,402,403,429,0,408].includes(e.status)) throw e; } }
     if(pass===0 && !refused){ try{ list=(await listModels(prov,key)).filter(m=>!list.includes(m)).slice(0,3); }catch(e){ break; } if(!list.length) break; } else break;
   } throw last||new ProvErr(prov,404,'sin modelos');
+}
+// Con Gemini se prueban las llaves en orden: si una es rechazada o se acaba su
+// limite, se pasa a la siguiente sola. Groq usa su unica llave compartida.
+async function viaProvider(prov, messages, opts){
+  const keys = prov==='gemini' ? geminiKeys() : [provKey(prov)].filter(Boolean);
+  let last, refused=0;
+  for(const key of keys){
+    try{ return await viaProviderKey(prov,key,messages,opts); }
+    catch(e){
+      if(e.refusal){ refused++; continue; }
+      last=e;
+      if(![401,403,429].includes(e.status)) throw e;
+    }
+  }
+  if(refused){ const e=Object.assign(new ProvErr(prov,200,'se nego'),{refusal:true}); throw e; }
+  throw last||new ProvErr(prov,404,'sin modelos');
 }
 export async function completeVision(messages, opts={}){
   // Vision: solo Gemini ve fotos (Groq no tiene modelo de vision). Las dos lo usan:

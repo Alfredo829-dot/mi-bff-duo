@@ -1,5 +1,5 @@
 // Mi BFF Duo v1.0 — Nia y Ruby, las dos con Gemini y Groq, juntas en el mismo cuarto, sin celular.
-import { LS, CHARACTERS, BASE_PERSONA, profileText, guard, minorSignal, researchQuery, webSearch, completeFor, completeVision, updateProfile, localProfile, cleanKey, PROVIDERS, provKey, listModels, provErrText, ADULT_RULES, warmModels, updateTone, toneText, saveMemory, memoryText, pickScenario, detectAction, getLimits, learnLimits, limitsText } from './ai.js';
+import { LS, CHARACTERS, BASE_PERSONA, profileText, guard, minorSignal, researchQuery, webSearch, completeFor, completeVision, updateProfile, localProfile, cleanKey, PROVIDERS, provKey, geminiKeys, setGeminiKeys, listModels, provErrText, ADULT_RULES, warmModels, updateTone, toneText, saveMemory, memoryText, pickScenario, detectAction, getLimits, learnLimits, limitsText } from './ai.js';
 import * as V from './voice.js';
 
 const VERSION='1.0.0';
@@ -243,10 +243,13 @@ function openSettings(){
   const voiceList=esVoices.length?esVoices:voices;
   el.innerHTML=`
     <h2>Ajustes — Mi BFF Duo</h2>
-    <p class="note">Nia y Ruby usan las dos APIs: Gemini y Groq. Gemini es la que les deja ver fotos; Groq es para respuestas rápidas de texto. Las llaves se guardan solo en este navegador.</p>
-    <label>Llave Gemini — para que LAS DOS vean fotos (aistudio.google.com)</label>
-    <input type="password" id="kGem" placeholder="AIza…" value="${provKey('gemini')?'•• guardada ••':''}">
-    <label>Llave Groq — respuestas rápidas de texto (console.groq.com)</label>
+    <p class="note">Nia y Ruby usan las dos APIs: Gemini y Groq. La llave de Groq es una sola y la comparten las dos. De Gemini puedes poner hasta 4 llaves de respaldo: si una falla o se acaba su límite, usan la siguiente solas. Las llaves se guardan solo en este navegador.</p>
+    <label>Llaves Gemini — para que LAS DOS vean fotos (aistudio.google.com)</label>
+    <input type="password" id="kGem1" placeholder="Llave Gemini 1 — AIza…" value="${geminiKeys()[0]?'•• guardada ••':''}">
+    <input type="password" id="kGem2" placeholder="Llave Gemini 2 (respaldo) — AIza…" value="${geminiKeys()[1]?'•• guardada ••':''}">
+    <input type="password" id="kGem3" placeholder="Llave Gemini 3 (respaldo) — AIza…" value="${geminiKeys()[2]?'•• guardada ••':''}">
+    <input type="password" id="kGem4" placeholder="Llave Gemini 4 (respaldo) — AIza…" value="${geminiKeys()[3]?'•• guardada ••':''}">
+    <label>Llave Groq — la comparten las dos, respuestas rápidas de texto (console.groq.com)</label>
     <input type="password" id="kGroq" placeholder="gsk_…" value="${provKey('groq')?'•• guardada ••':''}">
     <p class="note">Sin llave de Gemini, ninguna de las dos ve fotos. Sin llaves, cada una contesta con Pollinations gratis. Si una API falla, la otra entra de respaldo.</p>
     <label>💬 Personaliza sus respuestas (a tu gusto)</label>
@@ -277,7 +280,9 @@ function openSettings(){
   el.classList.remove('hidden');
   const saveKey=(prov,inputId)=>{ const raw=$(inputId).value; if(raw.startsWith('••')) return; const v=cleanKey(raw); const P=PROVIDERS[prov]; if(v) LS.set(P.ls,v); else LS.del(P.ls); LS.del('bffduo_models_'+prov); };
   $('#kGroq').addEventListener('change',()=>saveKey('groq','#kGroq'));
-  $('#kGem').addEventListener('change',()=>saveKey('gemini','#kGem'));
+  const saveGemini=()=>{ const ids=['#kGem1','#kGem2','#kGem3','#kGem4']; const cur=geminiKeys();
+    setGeminiKeys(ids.map((id,i)=>{ const v=$(id).value; return v.startsWith('••')?(cur[i]||'') : cleanKey(v); })); };
+  ['#kGem1','#kGem2','#kGem3','#kGem4'].forEach(id=>$(id).addEventListener('change',saveGemini));
   $('#sPersona').addEventListener('change',e=>{ cfg.persona=e.target.value.trim().slice(0,300); saveCfg(); });
   $('#sVoiceNia').addEventListener('change',e=>{ cfg.voiceNia=e.target.value.trim()||null; saveCfg(); });
   $('#sVoiceRuby').addEventListener('change',e=>{ cfg.voiceRuby=e.target.value.trim()||null; saveCfg(); });
