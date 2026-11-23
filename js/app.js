@@ -1,4 +1,4 @@
-// Mi BFF Duo v1.0 — Nia (Gemini) + Ruby (Groq), juntas en el mismo cuarto, sin celular.
+// Mi BFF Duo v1.0 — Nia y Ruby, las dos con Gemini y Groq, juntas en el mismo cuarto, sin celular.
 import { LS, CHARACTERS, BASE_PERSONA, profileText, guard, minorSignal, researchQuery, webSearch, completeFor, completeVision, updateProfile, localProfile, cleanKey, PROVIDERS, provKey, listModels, provErrText, ADULT_RULES, warmModels, updateTone, toneText, saveMemory, memoryText, pickScenario, detectAction, getLimits, learnLimits, limitsText } from './ai.js';
 import * as V from './voice.js';
 
@@ -81,7 +81,7 @@ async function askOne(charId, text, opts={}){
   } finally { setTyping(charId,false); }
 }
 async function askPhoto(charId, caption, dataUrl){
-  // Solo Nia (Gemini) ve fotos. Ruby no tiene vision.
+  // Las dos ven fotos: Nia y Ruby comentan fotos con Gemini (vision).
   const msgs=[{role:'system',content:buildSystem(charId,'La usuaria te mando una foto. Comenta lo que ves, en personaje, corto y con carino.')}];
   msgs.push({role:'user',content:[{type:'text',text:caption||'¿Que ves en esta foto?'},{type:'image_url',image_url:{url:dataUrl}}]});
   setTyping(charId,true); setTalking(charId);
@@ -96,7 +96,7 @@ async function send(text, opts={}){
     const minorInAdult=cfg.adult && minorSignal(text,true);
     if(minorInAdult){ cfg.adult=false; saveCfg(); push({role:'sys',content:'🔞 Modo +18 desactivado: hubo señal de que podrías ser menor de edad. Si fue un error, vuelve a activarlo en Ajustes.'}); syncAdult(); }
     const g=guard(text, minorInAdult || !!cfg.adult);
-    push({role:'user',content:text}); userCount++; LS.set('bffduo_ucount',userCount); localProfile(text);
+    if(!opts.nopush){ push({role:'user',content:text}); userCount++; LS.set('bffduo_ucount',userCount); localProfile(text); }
     lastUserAt=Date.now(); nudged=false;
     if(cfg.adult){ saveMemory(text); learnLimits(text); }
     updateTone(text);
@@ -188,25 +188,27 @@ async function regenerate(){
   // Quita las respuestas posteriores al ultimo mensaje del usuario.
   const idx=hist.lastIndexOf(lastUser);
   hist=hist.slice(0,idx+1); saveHist(); render();
-  await send(lastUser.content);
+  await send(lastUser.content, {nopush:true});
 }
 
-// ---------- foto: solo Nia la ve (Gemini vision) ----------
+// ---------- foto: las dos la ven (por Gemini vision) ----------
 async function sendPhoto(file){
   if(!file||busy) return;
-  if(!provKey('gemini')){ push({role:'sys',content:'Para que Nia vea fotos necesitas tu llave gratis de Gemini en Ajustes → Llaves. Ruby no ve fotos, su API es Groq.'}); return; }
+  if(!provKey('gemini')){ push({role:'sys',content:'Para que Nia y Ruby vean fotos necesitas tu llave gratis de Gemini en Ajustes → Llaves. Con esa llave las dos ven fotos; Groq es para respuestas rápidas de texto.'}); return; }
   const dataUrl=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); });
   // Achicar antes de mandar: solo se guarda una miniatura.
   const small=await shrinkImage(dataUrl).catch(()=>dataUrl);
   push({role:'user',content:'[foto enviada 📷]'});
   busy=true;
   try{
-    const minorInAdult=false;
     const g=guard('foto', !!cfg.adult);
     if(g){ push({role:'nia',who:'nia',content:g}); return; }
-    const r=await askPhoto('nia','¿Que ves en esta foto? Comentala en personaje.', small);
-    push({role:'assistant',who:'nia',content:r.text,via:r.via}); say(r.text); speakFor('nia',r.text);
-    push({role:'assistant',who:'ruby',content:'Yo no veo fotos, wey, esa es cosa de Nia. Pero cuentame tu que se ve 😏',via:'ruby'});
+    // La foto la comenta quien tengas elegida; con Ambas, las dos.
+    const targets = cfg.target==='both' ? ['nia','ruby'] : [cfg.target];
+    for(const charId of targets){
+      const r=await askPhoto(charId,'¿Que ves en esta foto? Comentala en personaje.', small);
+      push({role:'assistant',who:charId,content:r.text,via:r.via}); say(r.text); speakFor(charId,r.text);
+    }
   }catch(e){ push({role:'sys',content:'No pude comentar la foto. Revisa tu llave de Gemini en Ajustes.'}); }
   finally{ busy=false; setTalking(null); }
 }
@@ -241,12 +243,12 @@ function openSettings(){
   const voiceList=esVoices.length?esVoices:voices;
   el.innerHTML=`
     <h2>Ajustes — Mi BFF Duo</h2>
-    <p class="note">Nia usa Gemini · Ruby usa Groq · Respaldo gratis: Pollinations. Las llaves se guardan solo en este navegador.</p>
-    <label>Llave Groq — Ruby (console.groq.com)</label>
-    <input type="password" id="kGroq" placeholder="gsk_…" value="${provKey('groq')?'•• guardada ••':''}">
-    <label>Llave Gemini — Nia (aistudio.google.com)</label>
+    <p class="note">Nia y Ruby usan las dos APIs: Gemini y Groq. Gemini es la que les deja ver fotos; Groq es para respuestas rápidas de texto. Las llaves se guardan solo en este navegador.</p>
+    <label>Llave Gemini — para que LAS DOS vean fotos (aistudio.google.com)</label>
     <input type="password" id="kGem" placeholder="AIza…" value="${provKey('gemini')?'•• guardada ••':''}">
-    <p class="note">Sin llave, cada una contesta con Pollinations gratis. Solo Nia ve fotos, y solo con llave de Gemini.</p>
+    <label>Llave Groq — respuestas rápidas de texto (console.groq.com)</label>
+    <input type="password" id="kGroq" placeholder="gsk_…" value="${provKey('groq')?'•• guardada ••':''}">
+    <p class="note">Sin llave de Gemini, ninguna de las dos ve fotos. Sin llaves, cada una contesta con Pollinations gratis. Si una API falla, la otra entra de respaldo.</p>
     <label>💬 Personaliza sus respuestas (a tu gusto)</label>
     <input type="text" id="sPersona" placeholder="Ej: háblame con cariño, usa apodos, contesta corto y directo" value="${esc(cfg.persona||'')}">
     <p class="note">Esto se lo digo a Nia y a Ruby en cada respuesta, para que te contesten como tú quieras. Déjalo vacío para que contesten normal.</p>

@@ -2,8 +2,8 @@
 
 Nia y Ruby, tus dos BFF virtuales en el mismo cuarto: platica con una, con la otra, o con las dos a la vez. Siempre paradas juntas en el centro del cuarto, sin celular en la mano.
 
-- **Nia** — pelo largo plata/negro, tranquila y dulce. **API: Gemini** (`gemini-3.6-flash` / `gemini-3.5-flash-lite`). Es la única que ve fotos: el botón 📷 le manda la foto y la comenta con Gemini (necesita tu llave gratis de Gemini en Ajustes → Llaves). Su video `vid/nia1.mp4` se reproduce en su tarjeta, bailando de verdad.
-- **Ruby** — pelo largo rojo/blanco, atrevida y directa. **API: Groq** (`qwen/qwen3-32b`, respaldo `openai/gpt-oss-120b`). No ve fotos, su API no tiene visión.
+- **Nia** — pelo largo plata/negro, tranquila y dulce. **APIs: Gemini primero, Groq de respaldo.** Las dos ven fotos: su video `vid/nia1.mp4` se reproduce en su tarjeta, bailando de verdad. Para ver fotos usa Gemini (necesita tu llave gratis de Gemini en Ajustes → Llaves).
+- **Ruby** — pelo largo rojo/blanco, atrevida y directa. **APIs: Groq primero, Gemini de respaldo.** También ve fotos con Gemini, igual que Nia. su API no tiene visión.
 - **Respaldo gratis, sin tarjeta:** Pollinations (sin llave) para las dos, si no hay llave o el proveedor falla. Si un modelo ya no existe, se consulta `/models` y se usa otro.
 - **Chat en grupo:** botones Nia / Ruby / Ambas. En modo Ambas, Nia contesta primero con Gemini y Ruby reacciona en una frase corta con Groq. Cada una tiene su propio historial y su voz (Nia más aguda, Ruby más grave).
 - **Modo +18 (solo texto):** opcional en ⚙, apagado por defecto, con confirmación de mayoría de edad. Límites duros en el prompt y en `guard()`: todo entre adultos, nada con menores (si hay señal de menor, el modo se apaga solo), consentimiento, nada de incesto/bestialidad/personas reales, nunca imágenes. La memoria de largo plazo solo existe en +18: guarda lo que le encantó (máx 30 recuerdos, se retoman los últimos 5 en el prompt), es por reglas (regex), no es memoria real de la IA. También hay detección de tono, generador de escenarios, reacción física y registro de límites (intensidad 1–10 y lista de "no").

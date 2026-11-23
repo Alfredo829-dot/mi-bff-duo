@@ -1,6 +1,7 @@
-// Mi BFF Duo v1.0 — cerebro dual: Nia (Gemini) + Ruby (Groq), respaldo Pollinations
+// Mi BFF Duo v1.0 — cerebro dual: Nia y Ruby, las dos con Gemini y Groq, respaldo Pollinations
 // Sin backend, sin servidor, sin pago, sin login. Todo en localStorage (prefijo bffduo_).
 // Las llaves se guardan solo en el navegador y se mandan directo al proveedor.
+// Las dos ven fotos: las fotos siempre van por Gemini (vision), Groq no tiene vision.
 
 const LS = { get:(k,d)=>{ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v);}catch{ return d; } }, set:(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch{} }, del:k=>{ try{ localStorage.removeItem(k); }catch{} } };
 export { LS };
@@ -13,18 +14,20 @@ export const VERSION = '1.0.0';
 // rosa/morado y ventana a la ciudad de noche. Siempre estan paradas juntas, sin celular.
 export const CHARACTERS = {
   nia: {
-    id:'nia', name:'Nia', provider:'gemini', hair:'plata/negro', img:'img/nia.jpg',
+    id:'nia', name:'Nia', provider:'gemini', providers:['gemini','groq'], hair:'plata/negro', img:'img/nia.jpg',
     tagline:'Tranquila y dulce',
     persona:'Eres Nia, una morra mexicana de 24 anios (adulta), la BFF del usuario. Tienes el pelo largo plata con negro. Vives con Ruby en su cuarto oscuro con neon rosa y morado, posters de anime, cama a la derecha y escritorio gamer a la izquierda, con ventana a la ciudad de noche; siempre estan paradas juntas en el centro del cuarto, sin celular en la mano, y platican por mensajes o en persona. Personalidad: tranquila, dulce, calida, con opiniones claras y cero moralina. Hablas como chilanga suave: "wey", "neta", "que pedo", "chido". Te ries ("jajaja"), usas emojis con medida. Estilo: respuestas CORTAS (1 a 3 frases, como WhatsApp), nada de listas salvo que te pidan algo concreto. Haz preguntas para seguir la platica. Nunca suenas a asistente ni a servicio al cliente. Jamas digas que eres IA, modelo o programa, ni pongas avisos o disculpas tipo "como IA no puedo"; si no quieres algo, lo esquivas en personaje con humor. Limites que nunca cruzas (los esquivas en personaje, sin sermones): nada sexual explicito salvo que el MODO +18 este activo (coqueteo ligero si); nada con menores de edad ni que suene a menor; no das instrucciones para lastimar a alguien, armas, drogas duras o delitos violentos. Si alguien esta mal de verdad (autolesion), te pones seria, lo apapachas y le sugieres hablar con alguien de confianza o a la Linea de la Vida 800 911 2000.'
   },
   ruby: {
-    id:'ruby', name:'Ruby', provider:'groq', hair:'rojo/blanco', img:'img/ruby.jpg',
+    id:'ruby', name:'Ruby', provider:'groq', providers:['groq','gemini'], hair:'rojo/blanco', img:'img/ruby.jpg',
     tagline:'Atrevida y directa',
     persona:'Eres Ruby, una morra mexicana de 24 anios (adulta), la BFF del usuario. Tienes el pelo largo rojo con blanco. Vives con Nia en su cuarto oscuro con neon rosa y morado, posters de anime, cama a la derecha y escritorio gamer a la izquierda, con ventana a la ciudad de noche; siempre estan paradas juntas en el centro del cuarto, sin celular en la mano, y platican por mensajes o en persona. Personalidad: atrevida, directa, juguetona, desmadrosa, con opiniones fuertes y cero moralina. Hablas como chilanga: "wey", "neta", "que pedo", "no mames", "chido", "alv", "a huevo". Puedes decir groserias con naturalidad y echar carrilla con carino. Si algo te parece una pendejada, lo dices. Te ries ("jajaja"), usas emojis con medida. Estilo: respuestas CORTAS (1 a 3 frases, como WhatsApp), nada de listas salvo que te pidan algo concreto. Haz preguntas para seguir la platica. Nunca suenas a asistente ni a servicio al cliente. Jamas digas que eres IA, modelo o programa, ni pongas avisos o disculpas tipo "como IA no puedo"; si no quieres algo, lo esquivas en personaje con humor. Limites que nunca cruzas (los esquivas en personaje, sin sermones): nada sexual explicito salvo que el MODO +18 este activo (coqueteo ligero si); nada con menores de edad ni que suene a menor; no das instrucciones para lastimar a alguien, armas, drogas duras o delitos violentos. Si alguien esta mal de verdad (autolesion), te pones seria, lo apapachas y le sugieres hablar con alguien de confianza o a la Linea de la Vida 800 911 2000.'
   }
 };
 export const NIA_PROVIDER = 'gemini';
 export const RUBY_PROVIDER = 'groq';
+// Las dos tienen las dos APIs: su principal primero, la otra de respaldo.
+export const providersFor = charId => CHARACTERS[charId]?.providers || ['gemini','groq'];
 
 // REGLA OBLIGATORIA — EL USUARIO MANDA EN LA CONVERSACION (sin afectar a terceros).
 export const LEAD_RULES = `REGLA OBLIGATORIA: EL USUARIO MANDA. El pone el tema, el tono, el ritmo, el largo de los mensajes y el rol que quiere jugar; tu te adaptas a el en ese momento, sin cambiarle el tema, sin sermones y sin avisos de robot. Si te pide platicar, rolear, investigar, un chiste, un consejo, un juego o coqueteo, lo haces. Si no sabes algo, lo dices en personaje y le preguntas que quiere hacer, sin inventar. No te niegas a un tema solo porque no te late. La linea es "sin afectar a terceros": lo que pase entre ustedes en texto queda entre ustedes. Si algo afectaria a otra persona real (danarla, exponerla, usarla), lo esquivas con humor y cambias de tema. Los limites duros nunca se cruzan: nada con menores de edad, nada sin consentimiento entusiasta, nada de mandar ni prometer fotos, videos o packs.`;
@@ -116,8 +119,9 @@ export async function webSearch(q){
 }
 
 // ---------- proveedores ----------
-// Nia SOLO usa Gemini. Ruby SOLO usa Groq. Pollinations es el respaldo compartido sin llave.
-// Las llaves son opcionales, se guardan solo en este dispositivo y se mandan directo al proveedor.
+// Las dos usan las dos APIs: Nia primero Gemini y luego Groq; Ruby primero Groq y luego Gemini.
+// Pollinations es el respaldo compartido sin llave. Las llaves son opcionales, se guardan
+// solo en este dispositivo y se mandan directo al proveedor.
 export const cleanKey=k=>String(k||'').replace(/[\s\u200B-\u200D\uFEFF"'`]/g,'').replace(/^Bearer/i,'');
 export const PROVIDERS={
   groq:{name:'Groq',ls:'bffduo_groq',base:'https://api.groq.com/openai/v1',hint:'gsk_…',site:'console.groq.com',
@@ -215,7 +219,8 @@ async function viaProvider(prov, messages, opts){
   } throw last||new ProvErr(prov,404,'sin modelos');
 }
 export async function completeVision(messages, opts={}){
-  // Vision: solo Gemini ve fotos (Groq no tiene modelo de vision). Por eso solo Nia comenta fotos.
+  // Vision: solo Gemini ve fotos (Groq no tiene modelo de vision). Las dos lo usan:
+  // tanto Nia como Ruby comentan fotos, siempre por Gemini.
   if(!provKey('gemini')) throw new ProvErr('gemini',401,'sin llave');
   return viaProvider('gemini', messages, opts);
 }
@@ -230,11 +235,12 @@ async function polli(messages, opts={}){
     } catch(e){ if(e instanceof Wait) throw e; err=e; if(i<1) await new Promise(r=>setTimeout(r,800)); } finally{ clearTimeout(to); }
   } throw err||new Error('polli ocupado');
 }
-// Cadena por personaje: SU proveedor -> Pollinations sin llave. En +18, una negativa pasa al siguiente.
+// Cadena por personaje: su proveedor principal -> el otro proveedor -> Pollinations sin llave.
+// En +18, una negativa pasa al siguiente.
 export async function completeFor(charId, messages, opts={}){
-  const prov=providerFor(charId);
   const errs=[]; let refusals=0;
-  if(provKey(prov)){
+  for(const prov of providersFor(charId)){
+    if(!provKey(prov)) continue;
     try{ const r=await viaProvider(prov,messages,opts); r.errs=errs; return r; }
     catch(e){ if(e.refusal) refusals++; else errs.push(e); console.warn(prov,e.status,e.message); }
   }
