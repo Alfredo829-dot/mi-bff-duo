@@ -236,6 +236,9 @@ function openSettings(){
     <label>Llave Gemini — Nia (aistudio.google.com)</label>
     <input type="password" id="kGem" placeholder="AIza…" value="${provKey('gemini')?'•• guardada ••':''}">
     <p class="note">Sin llave, cada una contesta con Pollinations gratis. Solo Nia ve fotos, y solo con llave de Gemini.</p>
+    <label>💬 Personaliza sus respuestas (a tu gusto)</label>
+    <input type="text" id="sPersona" placeholder="Ej: háblame con cariño, usa apodos, contesta corto y directo" value="${esc(cfg.persona||'')}">
+    <p class="note">Esto se lo digo a Nia y a Ruby en cada respuesta, para que te contesten como tú quieras. Déjalo vacío para que contesten normal.</p>
     <label>Voz del sistema</label>
     <input type="text" id="sVoice" list="voices" placeholder="Voz por defecto" value="${esc(cfg.sysVoice||'')}">
     <datalist id="voices">${voices.map(v=>`<option value="${esc(v.name)}">`).join('')}</datalist>
@@ -259,6 +262,7 @@ function openSettings(){
   const saveKey=(prov,inputId)=>{ const raw=$(inputId).value; if(raw.startsWith('••')) return; const v=cleanKey(raw); const P=PROVIDERS[prov]; if(v) LS.set(P.ls,v); else LS.del(P.ls); LS.del('bffduo_models_'+prov); };
   $('#kGroq').addEventListener('change',()=>saveKey('groq','#kGroq'));
   $('#kGem').addEventListener('change',()=>saveKey('gemini','#kGem'));
+  $('#sPersona').addEventListener('change',e=>{ cfg.persona=e.target.value.trim().slice(0,300); saveCfg(); });
   $('#sVoice').addEventListener('change',e=>{ cfg.sysVoice=e.target.value||null; saveCfg(); });
   $('#sRate').addEventListener('input',e=>{ cfg.voiceRate=+e.target.value/100; $('#rateNote').textContent=e.target.value+'%'; saveCfg(); });
   $('#sRead').addEventListener('change',e=>{ cfg.readAloud=e.target.checked; saveCfg(); if(!cfg.readAloud) V.stopSpeaking(); });
