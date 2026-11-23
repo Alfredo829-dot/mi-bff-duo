@@ -1,12 +1,12 @@
 // Mi BFF Duo v1.0 — Nia y Ruby, las dos con Gemini y Groq, juntas en el mismo cuarto, sin celular.
-import { LS, CHARACTERS, BASE_PERSONA, profileText, guard, minorSignal, researchQuery, webSearch, completeFor, completeVision, updateProfile, localProfile, cleanKey, PROVIDERS, provKey, geminiKeys, setGeminiKeys, listModels, provErrText, ADULT_RULES, warmModels, updateTone, toneText, saveMemory, memoryText, pickScenario, detectAction, getLimits, learnLimits, limitsText } from './ai.js';
+import { LS, CHARACTERS, BASE_PERSONA, LEAD_RULES, profileText, guard, minorSignal, researchQuery, webSearch, completeFor, completeVision, updateProfile, localProfile, cleanKey, PROVIDERS, provKey, geminiKeys, setGeminiKeys, listModels, provErrText, ADULT_RULES, warmModels, updateTone, toneText, saveMemory, memoryText, pickScenario, detectAction, getLimits, learnLimits, limitsText } from './ai.js';
 import * as V from './voice.js';
 
 const VERSION='1.0.0';
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
 
-let cfg=Object.assign({voice:'es-MX',voiceRate:1,sysVoice:null,voiceNia:null,voiceRuby:null,readAloud:true,dev:false,persona:'',target:'both',adult:false},LS.get('bffduo_cfg',{}));
+let cfg=Object.assign({voice:'es-MX',voiceRate:1,sysVoice:null,voiceNia:null,voiceRuby:null,readAloud:true,dev:false,persona:'',personaNia:'',personaRuby:'',target:'both',adult:false},LS.get('bffduo_cfg',{}));
 if(!['nia','ruby','both'].includes(cfg.target)) cfg.target='both';
 let hist=LS.get('bffduo_hist',[]);
 const saveCfg=()=>LS.set('bffduo_cfg',cfg), saveHist=()=>LS.set('bffduo_hist',hist.slice(-200));
@@ -55,10 +55,14 @@ function render(){
 }
 function buildSystem(charId, extra='', auto=false){
   const c=CHARACTERS[charId];
+  // Personalidad escrita por la usuaria (como la de Vale en Mi BFF AI): si hay una,
+  // REEMPLAZA la personalidad base de ese personaje; si no, se usa la base.
+  const custom=(charId==='nia'?cfg.personaNia:cfg.personaRuby)||'';
+  const base=custom.trim()? custom.trim()+'\n'+LEAD_RULES : BASE_PERSONA(c.name);
   const ctx = extra ? `\nContexto de la web (resumido):\n${extra}` : '';
   // En modo Ambas, cada una sabe que esta con la otra en el mismo cuarto.
   const duoNote = (cfg.target==='both'||auto) ? `\nEstas con ${charId==='nia'?'Ruby':'Nia'} en el mismo cuarto. Pueden reaccionar la una a la otra, pero tu respondes por ti, en primera persona.` : '';
-  return BASE_PERSONA(c.name)+(cfg.adult?ADULT_RULES(c.name):'')+ctx+duoNote+profileText(LS.get('bffduo_profile',{}))+(cfg.adult?memoryText()+limitsText():'')+toneText(!!cfg.adult)+ (cfg.persona?`\nNota del usuario: ${cfg.persona}`:'');
+  return base+(cfg.adult?ADULT_RULES(c.name):'')+ctx+duoNote+profileText(LS.get('bffduo_profile',{}))+(cfg.adult?memoryText()+limitsText():'')+toneText(!!cfg.adult)+ (cfg.persona?`\nNota del usuario: ${cfg.persona}`:'');
 }
 function warnErrs(errs){
   if(!errs||!errs.length) return;
@@ -255,6 +259,11 @@ function openSettings(){
     <label>💬 Personaliza sus respuestas (a tu gusto)</label>
     <input type="text" id="sPersona" placeholder="Ej: háblame con cariño, usa apodos, contesta corto y directo" value="${esc(cfg.persona||'')}">
     <p class="note">Esto se lo digo a Nia y a Ruby en cada respuesta, para que te contesten como tú quieras. Déjalo vacío para que contesten normal.</p>
+    <label>💜 Personalidad de Nia (como la de Vale: escribe cómo quieres que hable)</label>
+    <textarea id="sPersonaNia" rows="4" placeholder="Ej: tranquila y dulce, coqueta, habla como chilanga suave, que te diga wey y te pregunte cosas...">${esc(cfg.personaNia||'')}</textarea>
+    <label>❤️ Personalidad de Ruby (como la de Vale: escribe cómo quieres que hable)</label>
+    <textarea id="sPersonaRuby" rows="4" placeholder="Ej: atrevida y directa, desmadrosa, que diga groserías con cariño y te eche carrilla...">${esc(cfg.personaRuby||'')}</textarea>
+    <p class="note">Si escribes aquí, esa personalidad REEMPLAZA la base de ese personaje, igual que la personalidad de Vale en Mi BFF AI. Si lo dejas vacío, usan su personalidad base. La nota de arriba ("Personaliza sus respuestas") se sigue aplicando además de esto.</p>
     <label>💜 Voz de Nia (bonita, de mujer)</label>
     <input type="text" id="sVoiceNia" list="voicesEs" placeholder="Voz bonita en español" value="${esc(cfg.voiceNia||autoVoices.nia||'')}">
     <label>❤️ Voz de Ruby (bonita, de mujer)</label>
@@ -284,6 +293,8 @@ function openSettings(){
     setGeminiKeys(ids.map((id,i)=>{ const v=$(id).value; return v.startsWith('••')?(cur[i]||'') : cleanKey(v); })); };
   ['#kGem1','#kGem2','#kGem3','#kGem4'].forEach(id=>$(id).addEventListener('change',saveGemini));
   $('#sPersona').addEventListener('change',e=>{ cfg.persona=e.target.value.trim().slice(0,300); saveCfg(); });
+  $('#sPersonaNia').addEventListener('change',e=>{ cfg.personaNia=e.target.value.trim().slice(0,2000); saveCfg(); });
+  $('#sPersonaRuby').addEventListener('change',e=>{ cfg.personaRuby=e.target.value.trim().slice(0,2000); saveCfg(); });
   $('#sVoiceNia').addEventListener('change',e=>{ cfg.voiceNia=e.target.value.trim()||null; saveCfg(); });
   $('#sVoiceRuby').addEventListener('change',e=>{ cfg.voiceRuby=e.target.value.trim()||null; saveCfg(); });
   $('#sRate').addEventListener('input',e=>{ cfg.voiceRate=+e.target.value/100; $('#rateNote').textContent=e.target.value+'%'; saveCfg(); });

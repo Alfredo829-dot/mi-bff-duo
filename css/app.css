@@ -84,6 +84,7 @@ button.active{background:linear-gradient(135deg,#ff6ec7,#7a3fb0);border:none}
 .sheet h2{margin:0 0 10px}
 .sheet label{display:block;font-size:13px;opacity:.85;margin:12px 0 4px}
 .sheet input[type=text],.sheet input[type=password],.sheet input[type=range]{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:#0e1330;color:#fff}
+.sheet textarea{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:#0e1330;color:#fff;font:inherit;resize:vertical}
 .sheet .row{display:flex;align-items:center;gap:10px;margin:10px 0}
 .sheet .note{font-size:12px;opacity:.75}
 .sheet .close{margin-top:14px;width:100%}
