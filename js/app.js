@@ -52,11 +52,11 @@ function render(){
   }).join('');
   box.scrollTop=box.scrollHeight;
 }
-function buildSystem(charId, extra=''){
+function buildSystem(charId, extra='', auto=false){
   const c=CHARACTERS[charId];
   const ctx = extra ? `\nContexto de la web (resumido):\n${extra}` : '';
   // En modo Ambas, cada una sabe que esta con la otra en el mismo cuarto.
-  const duoNote = cfg.target==='both' ? `\nEstas con ${charId==='nia'?'Ruby':'Nia'} en el mismo cuarto. Pueden reaccionar la una a la otra, pero tu respondes por ti, en primera persona.` : '';
+  const duoNote = (cfg.target==='both'||auto) ? `\nEstas con ${charId==='nia'?'Ruby':'Nia'} en el mismo cuarto. Pueden reaccionar la una a la otra, pero tu respondes por ti, en primera persona.` : '';
   return BASE_PERSONA(c.name)+(cfg.adult?ADULT_RULES(c.name):'')+ctx+duoNote+profileText(LS.get('bffduo_profile',{}))+(cfg.adult?memoryText()+limitsText():'')+toneText(!!cfg.adult)+ (cfg.persona?`\nNota del usuario: ${cfg.persona}`:'');
 }
 function warnErrs(errs){
@@ -65,7 +65,7 @@ function warnErrs(errs){
   push({role:'sys',content:'⚠️ '+provErrText(last)});
 }
 async function askOne(charId, text, opts={}){
-  const msgs=[{role:'system',content:buildSystem(charId, opts.ctx||'')}];
+  const msgs=[{role:'system',content:buildSystem(charId, opts.ctx||'', !!opts.auto)}];
   // Ultimos 12 mensajes de historial, salvo en la reaccion entre ellas,
   // donde el unico mensaje de usuario es la linea a reaccionar.
   const tail=opts.skipTailPush?[]:hist.filter(m=>m.role!=='sys').slice(-12).map(m=>({role:m.role==='user'?'user':'assistant',content:m.content}));
@@ -89,6 +89,7 @@ async function askPhoto(charId, caption, dataUrl){
 }
 async function send(text, opts={}){
   text=(text||'').trim(); if(!text||busy) return;
+  if(autoTalk) stopAuto(); // si escribes, ellas se callan y te contestan a ti
   busy=true;
   try{
     const minorInAdult=cfg.adult && minorSignal(text,true);
@@ -128,6 +129,49 @@ function speakFor(charId,text){
   const pitch = charId==='ruby'?0.9:1.15;
   V.unlockAudio();
   V.speak(text,{pitch,rate:cfg.voiceRate,voiceName:cfg.sysVoice,onEnd:()=>{ if(talking===charId) setTalking(null); }});
+}
+
+// ---------- modo automatico: hablan entre ellas solas ----------
+let autoTalk=false, autoTurns=0, autoErrs=0;
+function setAutoBtn(){
+  const b=$('#autoBtn'); if(!b) return;
+  b.classList.toggle('active',autoTalk);
+  b.textContent=autoTalk?'⏸️ Pararlas':'▶️ Hablen solas';
+}
+function stopAuto(){
+  autoTalk=false; setAutoBtn();
+}
+async function autoLoop(){
+  let speaker='nia', lastText='';
+  while(autoTalk){
+    if(busy){ await sleep(500); continue; }
+    if(autoTurns>=30){ stopAuto(); push({role:'sys',content:'⏸️ Se pausó el modo automático después de 30 turnos. Toca “Hablen solas” para que sigan.'}); break; }
+    busy=true;
+    try{
+      const prompt = lastText
+        ? `${speaker==='nia'?'Ruby':'Nia'} acaba de decir: "${lastText}". Contestale en 1-2 frases cortas, en personaje, como si platicaran entre ustedes dos en el cuarto. No repitas lo mismo.`
+        : `Empieza una platica con ${speaker==='nia'?'Ruby':'Nia'}, en personaje, 1-2 frases cortas. Preguntale algo o cuentale algo del cuarto.`;
+      const r=await askOne(speaker, prompt, {auto:true});
+      if(r.refused){ lastText=pick(DEFLECT); }
+      else{
+        lastText=r.text; autoErrs=0;
+        push({role:'assistant',who:speaker,content:r.text,via:r.via});
+        say(r.text); speakFor(speaker,r.text); reactOther(speaker);
+      }
+      autoTurns++;
+    }catch(e){
+      autoErrs++;
+      if(autoErrs>=2){ stopAuto(); push({role:'sys',content:'⏸️ Se pausó el modo automático, no pude contestar. Revisa tus llaves en Ajustes o intenta de nuevo.'}); break; }
+    }finally{ busy=false; setTalking(null); }
+    await sleep(2800);
+  }
+}
+function toggleAuto(){
+  if(autoTalk){ stopAuto(); push({role:'sys',content:'⏸️ Modo automático apagado.'}); return; }
+  if(!provKey('groq') && !provKey('gemini')) push({role:'sys',content:'Sin llaves, hablan con Pollinations gratis, puede tardar un poco entre turnos.'});
+  autoTalk=true; autoTurns=0; autoErrs=0; setAutoBtn();
+  push({role:'sys',content:'▶️ Modo automático: Nia y Ruby platican solas. Escribe algo o toca ⏸️ para pararlas.'});
+  autoLoop();
 }
 async function regenerate(){
   const lastUser=[...hist].reverse().find(m=>m.role==='user');
@@ -263,6 +307,7 @@ $('#input').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const v=e.targe
 $('#photoBtn').addEventListener('click',()=>$('#photoInput').click());
 $('#photoInput').addEventListener('change',e=>{ const f=e.target.files?.[0]; if(f) sendPhoto(f); e.target.value=''; });
 $('#micBtn').addEventListener('click',toggleMic);
+$('#autoBtn').addEventListener('click',toggleAuto);
 $('#settingsBtn').addEventListener('click',openSettings);
 $('#dice').addEventListener('click',()=>{ if(!cfg.adult||busy) return; V.unlockAudio(); proposeScenario(); });
 $$('#target button').forEach(b=>b.addEventListener('click',()=>{

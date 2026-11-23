@@ -73,8 +73,9 @@ button.active{background:linear-gradient(135deg,#ff6ec7,#7a3fb0);border:none}
 .msg .err{font-size:12px;opacity:.8}
 #composer{display:flex;gap:8px;padding:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.1)}
 #composer input{flex:1;background:#141a33;color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:11px 12px;font:inherit}
-#target{display:flex;gap:6px;padding:8px 10px 0}
+#target{display:flex;gap:6px;padding:8px 10px 0;flex-wrap:wrap}
 #target button{flex:1;padding:7px}
+#autoBtn{flex-basis:100%}
 #loader{position:fixed;inset:0;background:#0b1020;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:20;transition:opacity .4s}
 #loader.out{opacity:0;pointer-events:none}
 #loader .lbar{width:min(280px,70vw);height:8px;background:#222;border-radius:99px;overflow:hidden}
