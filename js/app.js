@@ -315,14 +315,9 @@ function toggleVoice(){
     V.speak('Hola, soy Nia, ¿me escuchas?',{pitch:1.15,rate:cfg.voiceRate,voiceName:cfg.voiceNia||autoVoices.nia||cfg.sysVoice||null});
   } else V.stopSpeaking();
 }
-// ---------- videos: Nia alterna sus 2 videos, Ruby repite el suyo ----------
+// ---------- videos: un video por personaje, en loop ----------
 function bootVideos(){
-  const nv=$('#vid-nia');
-  if(nv){
-    const list=['vid/nia1.mp4','vid/nia2.mp4']; let i=0;
-    nv.addEventListener('ended',()=>{ i=(i+1)%list.length; nv.src=list[i]; nv.play().catch(()=>{}); });
-    nv.play().catch(()=>{});
-  }
+  const nv=$('#vid-nia'); if(nv) nv.play().catch(()=>{});
   const rv=$('#vid-ruby'); if(rv) rv.play().catch(()=>{});
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden){ nv?.pause(); rv?.pause(); }

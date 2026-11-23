@@ -2,7 +2,7 @@
 
 Nia y Ruby, tus dos BFF virtuales en el mismo cuarto: platica con una, con la otra, o con las dos a la vez. Siempre paradas juntas en el centro del cuarto, sin celular en la mano.
 
-- **Nia** — pelo largo plata/negro, tranquila y dulce. **API: Gemini** (`gemini-3.6-flash` / `gemini-3.5-flash-lite`). Es la única que ve fotos: el botón 📷 le manda la foto y la comenta con Gemini (necesita tu llave gratis de Gemini en Ajustes → Llaves). Sus videos `vid/nia1.mp4` y `vid/nia2.mp4` se alternan en su tarjeta, bailando de verdad.
+- **Nia** — pelo largo plata/negro, tranquila y dulce. **API: Gemini** (`gemini-3.6-flash` / `gemini-3.5-flash-lite`). Es la única que ve fotos: el botón 📷 le manda la foto y la comenta con Gemini (necesita tu llave gratis de Gemini en Ajustes → Llaves). Su video `vid/nia1.mp4` se reproduce en su tarjeta, bailando de verdad.
 - **Ruby** — pelo largo rojo/blanco, atrevida y directa. **API: Groq** (`qwen/qwen3-32b`, respaldo `openai/gpt-oss-120b`). No ve fotos, su API no tiene visión.
 - **Respaldo gratis, sin tarjeta:** Pollinations (sin llave) para las dos, si no hay llave o el proveedor falla. Si un modelo ya no existe, se consulta `/models` y se usa otro.
 - **Chat en grupo:** botones Nia / Ruby / Ambas. En modo Ambas, Nia contesta primero con Gemini y Ruby reacciona en una frase corta con Groq. Cada una tiene su propio historial y su voz (Nia más aguda, Ruby más grave).
