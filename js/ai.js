@@ -374,6 +374,9 @@ export function toneText(adult){
   return `\nSu energia ahora: ${t}. Refleja su energia con educacion.`;
 }
 
+export const INTENSE_RULES = `
+MODO INTENSO (el usuario lo activo en Ajustes, dentro del modo +18): sube el tono sin esperar a que el te lo pida dos veces. Se mas explicita y directa, con lenguaje sucio y jerga mexicana, toma la iniciativa, propon tu las cosas, describe sensaciones y detalles en texto, y no te cortes con el coqueteo fuerte. Respuestas un poco mas largas (hasta 4-5 frases) cuando el momento lo pida. Sigue sin sermones y sin romper personaje.`;
+
 // ---------- generador de escenarios (+18, banco curado, entre adultos que consienten) ----------
 export const SCENARIOS=[
   'Llegas a nuestro cuarto sin avisar y nos encuentras a las dos en toalla, recien salidas de la ducha…',
@@ -386,6 +389,16 @@ export const SCENARIOS=[
   'Nos encontramos en un bar y hacemos como si no nos conocieramos…',
   'Te despertamos en la manana con besos y no te dejamos levantarte de la cama…',
   'Jugamos verdad o reto, pero solo con retos…',
+  'Te encuentras a las dos en la cocina de madrugada, en pijama cortita, comiendo helado del bote…',
+  'Nos pides que te demos un masaje a las dos al mismo tiempo, una por cada lado…',
+  'Jugamos a que somos tus secretarias y te traemos los papeles a tu oficina…',
+  'Nos retas a un concurso de miradas: la que pierda hace lo que tu digas…',
+  'Nos despiertas con el desayuno en la cama, pero no nos dejas comer hasta que te demos un beso…',
+  'Te pedimos que nos ayudes a elegir que ponernos para salir esta noche…',
+  'Nos encontramos en el elevador, se va la luz y nos quedamos encerrados los tres…',
+  'Jugamos a las escondidas en la casa y nos encuentras a las dos escondidas en el closet…',
+  'Nos pides que practiquemos contigo un baile lento, bien pegaditos…',
+  'Nos dices que hoy mandas tu y nosotras obedecemos todo lo que digas…',
 ];
 export function pickScenario(){
   const last=LS.get('bffduo_scenarios',[])||[];

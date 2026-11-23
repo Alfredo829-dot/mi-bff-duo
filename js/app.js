@@ -1,12 +1,12 @@
 // Mi BFF Duo v1.0 — Nia y Ruby, las dos con Gemini y Groq, juntas en el mismo cuarto, sin celular.
-import { LS, CHARACTERS, BASE_PERSONA, LEAD_RULES, profileText, guard, minorSignal, researchQuery, webSearch, completeFor, completeVision, updateProfile, localProfile, cleanKey, PROVIDERS, provKey, geminiKeysFor, setGeminiKeysFor, listModels, provErrText, ADULT_RULES, warmModels, updateTone, toneText, saveMemory, memoryText, pickScenario, detectAction, getLimits, learnLimits, limitsText } from './ai.js';
+import { LS, CHARACTERS, BASE_PERSONA, LEAD_RULES, profileText, guard, minorSignal, researchQuery, webSearch, completeFor, completeVision, updateProfile, localProfile, cleanKey, PROVIDERS, provKey, geminiKeysFor, setGeminiKeysFor, listModels, provErrText, ADULT_RULES, INTENSE_RULES, warmModels, updateTone, toneText, saveMemory, memoryText, pickScenario, detectAction, getLimits, learnLimits, limitsText } from './ai.js';
 import * as V from './voice.js';
 
 const VERSION='1.0.0';
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
 
-let cfg=Object.assign({voice:'es-MX',voiceRate:1,sysVoice:null,voiceNia:null,voiceRuby:null,readAloud:true,dev:false,persona:'',personaNia:'',personaRuby:'',target:'both',adult:false},LS.get('bffduo_cfg',{}));
+let cfg=Object.assign({voice:'es-MX',voiceRate:1,sysVoice:null,voiceNia:null,voiceRuby:null,readAloud:true,dev:false,persona:'',personaNia:'',personaRuby:'',target:'both',adult:false,intense:false},LS.get('bffduo_cfg',{}));
 if(!['nia','ruby','both'].includes(cfg.target)) cfg.target='both';
 let hist=LS.get('bffduo_hist',[]);
 const saveCfg=()=>LS.set('bffduo_cfg',cfg), saveHist=()=>LS.set('bffduo_hist',hist.slice(-200));
@@ -62,7 +62,7 @@ function buildSystem(charId, extra='', auto=false){
   const ctx = extra ? `\nContexto de la web (resumido):\n${extra}` : '';
   // En modo Ambas, cada una sabe que esta con la otra en el mismo cuarto.
   const duoNote = (cfg.target==='both'||auto) ? `\nEstas con ${charId==='nia'?'Ruby':'Nia'} en el mismo cuarto. Pueden reaccionar la una a la otra, pero tu respondes por ti, en primera persona.` : '';
-  return base+(cfg.adult?ADULT_RULES(c.name):'')+ctx+duoNote+profileText(LS.get('bffduo_profile',{}))+(cfg.adult?memoryText()+limitsText():'')+toneText(!!cfg.adult)+ (cfg.persona?`\nNota del usuario: ${cfg.persona}`:'');
+  return base+(cfg.adult?ADULT_RULES(c.name):'')+(cfg.adult&&cfg.intense?INTENSE_RULES:'')+ctx+duoNote+profileText(LS.get('bffduo_profile',{}))+(cfg.adult?memoryText()+limitsText():'')+toneText(!!cfg.adult)+ (cfg.persona?`\nNota del usuario: ${cfg.persona}`:'');
 }
 function warnErrs(errs){
   if(!errs||!errs.length) return;
@@ -119,7 +119,16 @@ async function send(text, opts={}){
     if(hist.filter(m=>m.role==='user').length%6===0) updateProfile(hist.filter(m=>m.role==='user').slice(-10).map(m=>m.content), targets[0]).catch(()=>{});
   }catch(e){
     console.warn(e);
-    if(e && e.wait) push({role:'sys',content:`⏳ La IA gratis esta ocupada, espera ${e.wait}s y vuelve a intentar.`});
+    if(e && e.wait && !opts.retried){
+      // La IA gratis esta ocupada: reintento solo una vez, con cuenta atras.
+      const w=Math.min(e.wait,45);
+      push({role:'sys',content:`⏳ La IA gratis esta ocupada, reintento solo en ${w}s…`});
+      busy=false; setTalking(null);
+      await sleep(w*1000);
+      await send(text,{...opts,retried:true,nopush:true});
+      return;
+    }
+    if(e && e.wait) push({role:'sys',content:'⏳ Sigue ocupada. Intenta de nuevo en un rato o pon tus llaves en Ajustes.'});
     else push({role:'sys',content:'No pude contestar ahorita. Revisa tus llaves en Ajustes o intenta de nuevo.'});
   }finally{ busy=false; setTalking(null); }
 }
@@ -163,7 +172,7 @@ async function autoLoop(){
     try{
       const prompt = lastText
         ? `${speaker==='nia'?'Ruby':'Nia'} acaba de decir: "${lastText}". Contestale en 1-2 frases cortas, en personaje, como si platicaran entre ustedes dos en el cuarto. No repitas lo mismo.`
-        : `Empieza una platica con ${speaker==='nia'?'Ruby':'Nia'}, en personaje, 1-2 frases cortas. Preguntale algo o cuentale algo del cuarto.`;
+        : `Empieza una platica con ${speaker==='nia'?'Ruby':'Nia'}: háblale DIRECTO A ELLA en 1-2 frases cortas, en personaje. El usuario solo esta mirando, no le hables a el.`;
       const r=await askOne(speaker, prompt, {auto:true});
       if(r.refused){ lastText=pick(DEFLECT); }
       else{
@@ -272,12 +281,15 @@ function openSettings(){
     <input type="text" id="sVoiceRuby" list="voicesEs" placeholder="Otra voz bonita en español" value="${esc(cfg.voiceRuby||autoVoices.ruby||'')}">
     <datalist id="voicesEs">${voiceList.map(v=>`<option value="${esc(v.name)}">`).join('')}</datalist>
     <p class="note">Si tu celular tiene varias voces en español, elige una distinta para cada una. Si no eliges, les pongo solas las dos más bonitas que encuentre. Prueba con “Leer respuestas en voz alta” prendido.</p>
+    <button id="sVoiceTest">🔊 Probar voces de Nia y Ruby</button>
     <label>Velocidad de voz: <span id="rateNote">${Math.round(cfg.voiceRate*100)}%</span></label>
     <input type="range" id="sRate" min="75" max="150" value="${Math.round(cfg.voiceRate*100)}">
     <div class="row"><label style="margin:0">🔊 Leer respuestas en voz alta</label><input type="checkbox" id="sRead" ${cfg.readAloud?'checked':''}></div>
     <div class="row"><label style="margin:0">🔞 Modo +18 (solo texto)</label><input type="checkbox" id="sAdult" ${cfg.adult?'checked':''}></div>
     <p class="note">Platica coqueta/subida de tono entre adultos, solo texto. Su ropa, poses y animaciones no cambian. Apagado por defecto.</p>
     <div id="adultBox" style="display:${cfg.adult?'block':'none'}">
+      <div class="row"><label style="margin:0">🔥 Modo intenso (más subido de tono)</label><input type="checkbox" id="sIntense" ${cfg.intense?'checked':''}></div>
+      <p class="note">Dentro del +18: suben el tono sin esperar, más explícitas y directas, toman la iniciativa y no se cortan. Solo texto, entre adultos.</p>
       <label>Intensidad maxima: <span id="intNote">${limits.intensity}/10</span></label>
       <input type="range" id="sInt" min="1" max="10" value="${limits.intensity}">
       <label>Memorias guardadas</label><p class="note" id="sMemNote">${mems.length} recuerdos guardados.</p>
@@ -300,6 +312,9 @@ function openSettings(){
   $('#sPersonaRuby').addEventListener('change',e=>{ cfg.personaRuby=e.target.value.trim().slice(0,2000); saveCfg(); });
   $('#sVoiceNia').addEventListener('change',e=>{ cfg.voiceNia=e.target.value.trim()||null; saveCfg(); });
   $('#sVoiceRuby').addEventListener('change',e=>{ cfg.voiceRuby=e.target.value.trim()||null; saveCfg(); });
+  $('#sVoiceTest').addEventListener('click',()=>{ V.unlockAudio(); refreshAutoVoices();
+    V.speak('Hola, soy Nia, ¿me escuchas?',{pitch:1.15,rate:cfg.voiceRate,voiceName:cfg.voiceNia||autoVoices.nia||cfg.sysVoice||null,onEnd:()=>{ V.speak('Y yo soy Ruby, ¿qué tal me escucho?',{pitch:0.9,rate:cfg.voiceRate,voiceName:cfg.voiceRuby||autoVoices.ruby||cfg.sysVoice||null}); }});
+  });
   $('#sRate').addEventListener('input',e=>{ cfg.voiceRate=+e.target.value/100; $('#rateNote').textContent=e.target.value+'%'; saveCfg(); });
   $('#sRead').addEventListener('change',e=>{ cfg.readAloud=e.target.checked; saveCfg(); if(!cfg.readAloud) V.stopSpeaking(); });
   $('#sAdult').addEventListener('change',e=>{
@@ -309,12 +324,19 @@ function openSettings(){
     } else cfg.adult=false;
     saveCfg(); syncAdult(); $('#adultBox').style.display=cfg.adult?'block':'none';
   });
+  $('#sIntense').addEventListener('change',e=>{ cfg.intense=e.target.checked; saveCfg(); });
   $('#sInt').addEventListener('input',e=>{ const l=getLimits(); l.intensity=+e.target.value; LS.set('bffduo_limits',l); $('#intNote').textContent=e.target.value+'/10'; });
   $('#sMemBtn').addEventListener('click',()=>{ const ml=$('#sMemList'); if(ml.style.display==='none'){ const ms=LS.get('bffduo_memories',[])||[]; ml.innerHTML=ms.length? ms.map(m=>`<p class="note">🗓️ ${new Date(m.t).toLocaleDateString('es-MX')}: ${esc(m.m)}</p>`).join('') : '<p class="note">Todavía no hay recuerdos. Cuando te diga que algo le encantó, lo guardo aquí.</p>'; ml.style.display='block'; } else ml.style.display='none'; });
   $('#sMemDel').addEventListener('click',()=>{ if(!confirm('¿Borrar todas las memorias guardadas?')) return; LS.del('bffduo_memories'); $('#sMemNote').textContent='0 recuerdos guardados.'; });
   $('#sNoList').addEventListener('click',e=>{ const b=e.target.closest('button[data-no]'); if(!b) return; const l=getLimits(); l.no.splice(+b.dataset.no,1); LS.set('bffduo_limits',l); openSettings(); });
   $('#sNoBtn').addEventListener('click',()=>{ const inp=$('#sNoAdd'); const v=inp.value.trim(); if(!v) return; const l=getLimits(); if(!l.no.some(x=>x.toLowerCase()===v.toLowerCase())) l.no.push(v.slice(0,40)); LS.set('bffduo_limits',l); openSettings(); });
-  $('#sReset').addEventListener('click',()=>{ if(!confirm('¿Borrar todo el chat y los datos guardados?')) return; ['bffduo_hist','bffduo_profile','bffduo_ucount','bffduo_stats','bffduo_memories','bffduo_limits'].forEach(LS.del); hist=[]; userCount=0; cfg.adult=false; saveCfg(); syncAdult(); el.classList.add('hidden'); render(); intro(); });
+  let resetArmed=false, resetTimer=null;
+  $('#sReset').addEventListener('click',()=>{
+    if(!resetArmed){ resetArmed=true; $('#sReset').textContent='⚠️ ¿Seguro? Toca de nuevo para borrar TODO';
+      resetTimer=setTimeout(()=>{ resetArmed=false; const b=$('#sReset'); if(b) b.textContent='🗑️ Borrar chat y datos'; },5000); return; }
+    clearTimeout(resetTimer); resetArmed=false;
+    ['bffduo_hist','bffduo_profile','bffduo_ucount','bffduo_stats','bffduo_memories','bffduo_limits'].forEach(LS.del); hist=[]; userCount=0; cfg.adult=false; cfg.intense=false; saveCfg(); syncAdult(); el.classList.add('hidden'); render(); intro();
+  });
   $('#sRegen').addEventListener('click',()=>{ el.classList.add('hidden'); regenerate(); });
   $('#sClose').addEventListener('click',()=>el.classList.add('hidden'));
 }
@@ -365,7 +387,7 @@ $('#micBtn').addEventListener('click',toggleMic);
 $('#voiceBtn').addEventListener('click',toggleVoice);
 $('#autoBtn').addEventListener('click',toggleAuto);
 $('#settingsBtn').addEventListener('click',openSettings);
-$('#dice').addEventListener('click',()=>{ if(!cfg.adult||busy) return; V.unlockAudio(); proposeScenario(); });
+$('#dice').addEventListener('click',()=>{ if(busy) return; if(!cfg.adult){ push({role:'sys',content:'🎲 El dado es solo para el modo +18 (solo texto). Actívalo en Ajustes ⚙️.'}); return; } V.unlockAudio(); proposeScenario(); });
 $$('#target button').forEach(b=>b.addEventListener('click',()=>{
   $$('#target button').forEach(x=>x.classList.remove('active')); b.classList.add('active');
   cfg.target=b.dataset.target; saveCfg();
