@@ -1,5 +1,5 @@
 // Mi BFF Duo v1.0 — Nia y Ruby, las dos con Gemini y Groq, juntas en el mismo cuarto, sin celular.
-import { LS, CHARACTERS, BASE_PERSONA, LEAD_RULES, profileText, guard, minorSignal, researchQuery, webSearch, completeFor, completeVision, updateProfile, localProfile, cleanKey, PROVIDERS, provKey, geminiKeys, setGeminiKeys, listModels, provErrText, ADULT_RULES, warmModels, updateTone, toneText, saveMemory, memoryText, pickScenario, detectAction, getLimits, learnLimits, limitsText } from './ai.js';
+import { LS, CHARACTERS, BASE_PERSONA, LEAD_RULES, profileText, guard, minorSignal, researchQuery, webSearch, completeFor, completeVision, updateProfile, localProfile, cleanKey, PROVIDERS, provKey, geminiKeysFor, setGeminiKeysFor, listModels, provErrText, ADULT_RULES, warmModels, updateTone, toneText, saveMemory, memoryText, pickScenario, detectAction, getLimits, learnLimits, limitsText } from './ai.js';
 import * as V from './voice.js';
 
 const VERSION='1.0.0';
@@ -89,7 +89,7 @@ async function askPhoto(charId, caption, dataUrl){
   const msgs=[{role:'system',content:buildSystem(charId,'La usuaria te mando una foto. Comenta lo que ves, en personaje, corto y con carino.')}];
   msgs.push({role:'user',content:[{type:'text',text:caption||'¿Que ves en esta foto?'},{type:'image_url',image_url:{url:dataUrl}}]});
   setTyping(charId,true); setTalking(charId);
-  try{ const r=await completeVision(msgs,{adult:!!cfg.adult}); warnErrs(r.errs); if(r.refused) return {text:pick(DEFLECT),via:r.via}; return r; }
+  try{ const r=await completeVision(msgs,{adult:!!cfg.adult, char:charId}); warnErrs(r.errs); if(r.refused) return {text:pick(DEFLECT),via:r.via}; return r; }
   finally{ setTyping(charId,false); }
 }
 async function send(text, opts={}){
@@ -181,7 +181,7 @@ async function autoLoop(){
 }
 function toggleAuto(){
   if(autoTalk){ stopAuto(); push({role:'sys',content:'⏸️ Modo automático apagado.'}); return; }
-  if(!provKey('groq') && !provKey('gemini')) push({role:'sys',content:'Sin llaves, hablan con Pollinations gratis, puede tardar un poco entre turnos.'});
+  if(!provKey('groq') && !geminiKeysFor('nia').length && !geminiKeysFor('ruby').length) push({role:'sys',content:'Sin llaves, hablan con Pollinations gratis, puede tardar un poco entre turnos.'});
   autoTalk=true; autoTurns=0; autoErrs=0; setAutoBtn();
   push({role:'sys',content:'▶️ Modo automático: Nia y Ruby platican solas. Escribe algo o toca ⏸️ para pararlas.'});
   autoLoop();
@@ -195,10 +195,12 @@ async function regenerate(){
   await send(lastUser.content, {nopush:true});
 }
 
-// ---------- foto: las dos la ven (por Gemini vision) ----------
+// ---------- foto: las dos la ven (por Gemini vision, cada una con sus llaves) ----------
 async function sendPhoto(file){
   if(!file||busy) return;
-  if(!provKey('gemini')){ push({role:'sys',content:'Para que Nia y Ruby vean fotos necesitas tu llave gratis de Gemini en Ajustes → Llaves. Con esa llave las dos ven fotos; Groq es para respuestas rápidas de texto.'}); return; }
+  // La foto la comenta quien tengas elegida; con Ambas, las dos.
+  const targets = cfg.target==='both' ? ['nia','ruby'] : [cfg.target];
+  if(!targets.some(c=>geminiKeysFor(c).length)){ push({role:'sys',content:'Para que vean fotos, cada una necesita sus 2 llaves de Gemini en Ajustes → Llaves (2 para Nia y 2 para Ruby, por separado).'}); return; }
   const dataUrl=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); });
   // Achicar antes de mandar: solo se guarda una miniatura.
   const small=await shrinkImage(dataUrl).catch(()=>dataUrl);
@@ -207,13 +209,12 @@ async function sendPhoto(file){
   try{
     const g=guard('foto', !!cfg.adult);
     if(g){ push({role:'nia',who:'nia',content:g}); return; }
-    // La foto la comenta quien tengas elegida; con Ambas, las dos.
-    const targets = cfg.target==='both' ? ['nia','ruby'] : [cfg.target];
     for(const charId of targets){
+      if(!geminiKeysFor(charId).length){ push({role:'sys',content:`${charId==='nia'?'Nia':'Ruby'} todavía no tiene sus llaves de Gemini. Ponle sus 2 llaves en Ajustes → Llaves.`}); continue; }
       const r=await askPhoto(charId,'¿Que ves en esta foto? Comentala en personaje.', small);
       push({role:'assistant',who:charId,content:r.text,via:r.via}); say(r.text); speakFor(charId,r.text);
     }
-  }catch(e){ push({role:'sys',content:'No pude comentar la foto. Revisa tu llave de Gemini en Ajustes.'}); }
+  }catch(e){ push({role:'sys',content:'No pude comentar la foto. Revisa tus llaves de Gemini en Ajustes.'}); }
   finally{ busy=false; setTalking(null); }
 }
 function shrinkImage(dataUrl){
@@ -247,15 +248,16 @@ function openSettings(){
   const voiceList=esVoices.length?esVoices:voices;
   el.innerHTML=`
     <h2>Ajustes — Mi BFF Duo</h2>
-    <p class="note">Nia y Ruby usan las dos APIs: Gemini y Groq. La llave de Groq es una sola y la comparten las dos. De Gemini puedes poner hasta 4 llaves de respaldo: si una falla o se acaba su límite, usan la siguiente solas. Las llaves se guardan solo en este navegador.</p>
-    <label>Llaves Gemini — para que LAS DOS vean fotos (aistudio.google.com)</label>
-    <input type="password" id="kGem1" placeholder="Llave Gemini 1 — AIza…" value="${geminiKeys()[0]?'•• guardada ••':''}">
-    <input type="password" id="kGem2" placeholder="Llave Gemini 2 (respaldo) — AIza…" value="${geminiKeys()[1]?'•• guardada ••':''}">
-    <input type="password" id="kGem3" placeholder="Llave Gemini 3 (respaldo) — AIza…" value="${geminiKeys()[2]?'•• guardada ••':''}">
-    <input type="password" id="kGem4" placeholder="Llave Gemini 4 (respaldo) — AIza…" value="${geminiKeys()[3]?'•• guardada ••':''}">
+    <p class="note">Nia y Ruby usan las dos APIs: Gemini y Groq. La llave de Groq es una sola y la comparten las dos. De Gemini cada una tiene SUS 2 llaves propias, no las comparten: si una llave de Nia falla o se acaba su límite, usa su otra llave; lo mismo Ruby. Las llaves se guardan solo en este navegador.</p>
+    <label>💜 Llaves Gemini de Nia — solo para ella (aistudio.google.com)</label>
+    <input type="password" id="kGemNia1" placeholder="Llave Gemini de Nia 1 — AIza…" value="${geminiKeysFor('nia')[0]?'•• guardada ••':''}">
+    <input type="password" id="kGemNia2" placeholder="Llave Gemini de Nia 2 (respaldo) — AIza…" value="${geminiKeysFor('nia')[1]?'•• guardada ••':''}">
+    <label>❤️ Llaves Gemini de Ruby — solo para ella (aistudio.google.com)</label>
+    <input type="password" id="kGemRuby1" placeholder="Llave Gemini de Ruby 1 — AIza…" value="${geminiKeysFor('ruby')[0]?'•• guardada ••':''}">
+    <input type="password" id="kGemRuby2" placeholder="Llave Gemini de Ruby 2 (respaldo) — AIza…" value="${geminiKeysFor('ruby')[1]?'•• guardada ••':''}">
     <label>Llave Groq — la comparten las dos, respuestas rápidas de texto (console.groq.com)</label>
     <input type="password" id="kGroq" placeholder="gsk_…" value="${provKey('groq')?'•• guardada ••':''}">
-    <p class="note">Sin llave de Gemini, ninguna de las dos ve fotos. Sin llaves, cada una contesta con Pollinations gratis. Si una API falla, la otra entra de respaldo.</p>
+    <p class="note">Sin sus llaves de Gemini, esa personaje no ve fotos. Sin llaves, cada una contesta con Pollinations gratis. Si una API falla, la otra entra de respaldo.</p>
     <label>💬 Personaliza sus respuestas (a tu gusto)</label>
     <input type="text" id="sPersona" placeholder="Ej: háblame con cariño, usa apodos, contesta corto y directo" value="${esc(cfg.persona||'')}">
     <p class="note">Esto se lo digo a Nia y a Ruby en cada respuesta, para que te contesten como tú quieras. Déjalo vacío para que contesten normal.</p>
@@ -289,9 +291,10 @@ function openSettings(){
   el.classList.remove('hidden');
   const saveKey=(prov,inputId)=>{ const raw=$(inputId).value; if(raw.startsWith('••')) return; const v=cleanKey(raw); const P=PROVIDERS[prov]; if(v) LS.set(P.ls,v); else LS.del(P.ls); LS.del('bffduo_models_'+prov); };
   $('#kGroq').addEventListener('change',()=>saveKey('groq','#kGroq'));
-  const saveGemini=()=>{ const ids=['#kGem1','#kGem2','#kGem3','#kGem4']; const cur=geminiKeys();
-    setGeminiKeys(ids.map((id,i)=>{ const v=$(id).value; return v.startsWith('••')?(cur[i]||'') : cleanKey(v); })); };
-  ['#kGem1','#kGem2','#kGem3','#kGem4'].forEach(id=>$(id).addEventListener('change',saveGemini));
+  const saveGeminiFor=(charId,ids)=>{ const cur=geminiKeysFor(charId);
+    setGeminiKeysFor(charId, ids.map((id,i)=>{ const v=$(id).value; return v.startsWith('••')?(cur[i]||'') : cleanKey(v); })); };
+  ['#kGemNia1','#kGemNia2'].forEach(id=>$(id).addEventListener('change',()=>saveGeminiFor('nia',['#kGemNia1','#kGemNia2'])));
+  ['#kGemRuby1','#kGemRuby2'].forEach(id=>$(id).addEventListener('change',()=>saveGeminiFor('ruby',['#kGemRuby1','#kGemRuby2'])));
   $('#sPersona').addEventListener('change',e=>{ cfg.persona=e.target.value.trim().slice(0,300); saveCfg(); });
   $('#sPersonaNia').addEventListener('change',e=>{ cfg.personaNia=e.target.value.trim().slice(0,2000); saveCfg(); });
   $('#sPersonaRuby').addEventListener('change',e=>{ cfg.personaRuby=e.target.value.trim().slice(0,2000); saveCfg(); });

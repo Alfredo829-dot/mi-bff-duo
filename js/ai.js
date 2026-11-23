@@ -132,19 +132,26 @@ export const PROVIDERS={
 };
 export const providerFor = charId => CHARACTERS[charId]?.provider || 'gemini';
 export const provKey = p=>cleanKey(LS.get(PROVIDERS[p].ls,''));
-// Gemini con respaldo: hasta 4 llaves, se prueban en orden hasta que una funcione.
-// La llave vieja (una sola) sigue valiendo: se usa como una mas de la lista.
-export function geminiKeys(){
+// Gemini con respaldo: cada personaje tiene SUS 2 llaves propias, no las comparten.
+// Si una llave de Nia falla o se acaba su limite, usa su otra llave; lo mismo Ruby.
+// La lista vieja compartida (bffduo_gemini_keys) se reparte una sola vez: las 2 primeras
+// para Nia y las 2 ultimas para Ruby, para no perder las que ya estaban puestas.
+export function geminiKeysFor(charId){
+  const key='bffduo_gemini_keys_'+charId;
+  const stored=LS.get(key,null);
+  if(Array.isArray(stored)) return stored.map(cleanKey).filter(Boolean).slice(0,2);
   const arr=LS.get('bffduo_gemini_keys',[]);
-  const list=(Array.isArray(arr)?arr:[]).map(cleanKey).filter(Boolean);
+  const shared=(Array.isArray(arr)?arr:[]).map(cleanKey).filter(Boolean);
   const single=provKey('gemini');
-  if(single && !list.includes(single)) list.push(single);
-  return list.slice(0,4);
+  if(single && !shared.includes(single)) shared.push(single);
+  const mine=(charId==='ruby'?shared.slice(2,4):shared.slice(0,2));
+  LS.set(key, mine);
+  return mine;
 }
-export function setGeminiKeys(keys){
-  const list=(keys||[]).map(cleanKey).filter(Boolean).slice(0,4);
-  LS.set('bffduo_gemini_keys', list);
-  if(list[0]) LS.set(PROVIDERS.gemini.ls, list[0]); else LS.del(PROVIDERS.gemini.ls);
+export function setGeminiKeysFor(charId, keys){
+  const list=(keys||[]).map(cleanKey).filter(Boolean).slice(0,2);
+  LS.set('bffduo_gemini_keys_'+charId, list);
+  if(charId==='nia' && list[0]) LS.set(PROVIDERS.gemini.ls, list[0]);
   LS.del('bffduo_models_gemini');
   return list;
 }
@@ -237,7 +244,7 @@ async function viaProviderKey(prov, key, messages, opts){
 // Con Gemini se prueban las llaves en orden: si una es rechazada o se acaba su
 // limite, se pasa a la siguiente sola. Groq usa su unica llave compartida.
 async function viaProvider(prov, messages, opts){
-  const keys = prov==='gemini' ? geminiKeys() : [provKey(prov)].filter(Boolean);
+  const keys = prov==='gemini' ? geminiKeysFor(opts.char||'nia') : [provKey(prov)].filter(Boolean);
   let last, refused=0;
   for(const key of keys){
     try{ return await viaProviderKey(prov,key,messages,opts); }
@@ -251,9 +258,9 @@ async function viaProvider(prov, messages, opts){
   throw last||new ProvErr(prov,404,'sin modelos');
 }
 export async function completeVision(messages, opts={}){
-  // Vision: solo Gemini ve fotos (Groq no tiene modelo de vision). Las dos lo usan:
-  // tanto Nia como Ruby comentan fotos, siempre por Gemini.
-  if(!provKey('gemini')) throw new ProvErr('gemini',401,'sin llave');
+  // Vision: solo Gemini ve fotos (Groq no tiene modelo de vision). Las dos lo usan,
+  // cada una con SUS propias llaves de Gemini.
+  if(!geminiKeysFor(opts.char||'nia').length) throw new ProvErr('gemini',401,'sin llave');
   return viaProvider('gemini', messages, opts);
 }
 export class Wait extends Error{ constructor(s){ super('wait'); this.wait=s; } }
@@ -270,6 +277,7 @@ async function polli(messages, opts={}){
 // Cadena por personaje: su proveedor principal -> el otro proveedor -> Pollinations sin llave.
 // En +18, una negativa pasa al siguiente.
 export async function completeFor(charId, messages, opts={}){
+  opts={...opts, char:charId};
   const errs=[]; let refusals=0;
   for(const prov of providersFor(charId)){
     if(!provKey(prov)) continue;
