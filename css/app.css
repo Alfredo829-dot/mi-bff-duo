@@ -34,7 +34,8 @@ button.active{background:linear-gradient(135deg,#ff6ec7,#7a3fb0);border:none}
   animation:breathe 4.2s ease-in-out infinite, sway 7s ease-in-out infinite;
   transform-origin:50% 100%;}
 .char.ruby{animation-delay:.7s,1.1s}
-.char img,.char video{display:block;width:100%;height:430px;object-fit:cover;object-position:50% 18%}
+.char img{display:block;width:100%;height:430px;object-fit:cover;object-position:50% 18%}
+.char video{display:block;width:100%;height:auto;aspect-ratio:9/16;object-fit:cover;object-position:50% 50%;max-height:62vh}
 @keyframes breathe{0%,100%{transform:scale(1) rotate(var(--tilt,0deg))}50%{transform:scale(1.018) rotate(var(--tilt,0deg))}}
 @keyframes sway{0%,100%{transform:translateX(0) rotate(-.5deg)}50%{transform:translateX(3px) rotate(.5deg)}}
 @keyframes hair{0%,100%{transform:scale(1.02) translateY(0)}50%{transform:scale(1.03) translateY(-3px)}}
@@ -93,7 +94,7 @@ button.active{background:linear-gradient(135deg,#ff6ec7,#7a3fb0);border:none}
   #stage{flex:1;margin-top:var(--barH)}
   #chat{width:var(--panelW);height:auto;margin-top:var(--barH);border-top:none;border-left:1px solid rgba(255,255,255,.14)}
   .char img{height:520px}
-  .char video{height:520px}
+  .char video{height:auto;max-height:520px}
 }
 @media (prefers-reduced-motion: reduce){
   .char,.char img,.char::after{animation:none!important}
