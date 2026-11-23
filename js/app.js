@@ -6,7 +6,7 @@ const VERSION='1.0.0';
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
 
-let cfg=Object.assign({voice:'es-MX',voiceRate:1,sysVoice:null,readAloud:false,dev:false,persona:'',target:'both',adult:false},LS.get('bffduo_cfg',{}));
+let cfg=Object.assign({voice:'es-MX',voiceRate:1,sysVoice:null,voiceNia:null,voiceRuby:null,readAloud:false,dev:false,persona:'',target:'both',adult:false},LS.get('bffduo_cfg',{}));
 if(!['nia','ruby','both'].includes(cfg.target)) cfg.target='both';
 let hist=LS.get('bffduo_hist',[]);
 const saveCfg=()=>LS.set('bffduo_cfg',cfg), saveHist=()=>LS.set('bffduo_hist',hist.slice(-200));
@@ -127,9 +127,23 @@ async function send(text, opts={}){
 function speakFor(charId,text){
   if(!cfg.readAloud) return;
   const pitch = charId==='ruby'?0.9:1.15;
+  // Cada una con su propia voz de mujer: la elegida en Ajustes, o la
+  // primera voz bonita en español que tenga el celular, distinta para cada una.
+  const voiceName = (charId==='nia' ? (cfg.voiceNia||autoVoices.nia) : (cfg.voiceRuby||autoVoices.ruby)) || cfg.sysVoice || null;
   V.unlockAudio();
-  V.speak(text,{pitch,rate:cfg.voiceRate,voiceName:cfg.sysVoice,onEnd:()=>{ if(talking===charId) setTalking(null); }});
+  V.speak(text,{pitch,rate:cfg.voiceRate,voiceName,onEnd:()=>{ if(talking===charId) setTalking(null); }});
 }
+// Voces bonitas de mujer en español: se buscan entre las voces del celular.
+let autoVoices={nia:null,ruby:null};
+function refreshAutoVoices(){
+  const vs=V.listVoices().filter(v=>v.lang && v.lang.toLowerCase().startsWith('es'));
+  if(!vs.length) return;
+  const fem=vs.filter(v=>/female|femenina|mujer|paulina|mónica|monica|lucía|lucia|carmen|sofía|sofia|valentina|isabela|juana|rosa|maría|maria|laura|ana|elena|google español/i.test(v.name));
+  const pool=fem.length>=2?fem:(fem.length===1?[...fem,...vs.filter(v=>!fem.includes(v))]:vs);
+  autoVoices.nia=pool[0]?.name||null;
+  autoVoices.ruby=pool[1]?.name||pool[0]?.name||null;
+}
+if('speechSynthesis' in window){ try{ speechSynthesis.addEventListener('voiceschanged',refreshAutoVoices); }catch{} }
 
 // ---------- modo automatico: hablan entre ellas solas ----------
 let autoTalk=false, autoTurns=0, autoErrs=0;
@@ -228,6 +242,8 @@ async function proposeScenario(){
 function openSettings(){
   const el=$('#sheet'); const limits=getLimits(); const mems=LS.get('bffduo_memories',[])||[];
   const voices=V.listVoices();
+  const esVoices=voices.filter(v=>v.lang&&v.lang.toLowerCase().startsWith('es'));
+  const voiceList=esVoices.length?esVoices:voices;
   el.innerHTML=`
     <h2>Ajustes — Mi BFF Duo</h2>
     <p class="note">Nia usa Gemini · Ruby usa Groq · Respaldo gratis: Pollinations. Las llaves se guardan solo en este navegador.</p>
@@ -239,9 +255,12 @@ function openSettings(){
     <label>💬 Personaliza sus respuestas (a tu gusto)</label>
     <input type="text" id="sPersona" placeholder="Ej: háblame con cariño, usa apodos, contesta corto y directo" value="${esc(cfg.persona||'')}">
     <p class="note">Esto se lo digo a Nia y a Ruby en cada respuesta, para que te contesten como tú quieras. Déjalo vacío para que contesten normal.</p>
-    <label>Voz del sistema</label>
-    <input type="text" id="sVoice" list="voices" placeholder="Voz por defecto" value="${esc(cfg.sysVoice||'')}">
-    <datalist id="voices">${voices.map(v=>`<option value="${esc(v.name)}">`).join('')}</datalist>
+    <label>💜 Voz de Nia (bonita, de mujer)</label>
+    <input type="text" id="sVoiceNia" list="voicesEs" placeholder="Voz bonita en español" value="${esc(cfg.voiceNia||autoVoices.nia||'')}">
+    <label>❤️ Voz de Ruby (bonita, de mujer)</label>
+    <input type="text" id="sVoiceRuby" list="voicesEs" placeholder="Otra voz bonita en español" value="${esc(cfg.voiceRuby||autoVoices.ruby||'')}">
+    <datalist id="voicesEs">${voiceList.map(v=>`<option value="${esc(v.name)}">`).join('')}</datalist>
+    <p class="note">Si tu celular tiene varias voces en español, elige una distinta para cada una. Si no eliges, les pongo solas las dos más bonitas que encuentre. Prueba con “Leer respuestas en voz alta” prendido.</p>
     <label>Velocidad de voz: <span id="rateNote">${Math.round(cfg.voiceRate*100)}%</span></label>
     <input type="range" id="sRate" min="75" max="150" value="${Math.round(cfg.voiceRate*100)}">
     <div class="row"><label style="margin:0">🔊 Leer respuestas en voz alta</label><input type="checkbox" id="sRead" ${cfg.readAloud?'checked':''}></div>
@@ -263,7 +282,8 @@ function openSettings(){
   $('#kGroq').addEventListener('change',()=>saveKey('groq','#kGroq'));
   $('#kGem').addEventListener('change',()=>saveKey('gemini','#kGem'));
   $('#sPersona').addEventListener('change',e=>{ cfg.persona=e.target.value.trim().slice(0,300); saveCfg(); });
-  $('#sVoice').addEventListener('change',e=>{ cfg.sysVoice=e.target.value||null; saveCfg(); });
+  $('#sVoiceNia').addEventListener('change',e=>{ cfg.voiceNia=e.target.value.trim()||null; saveCfg(); });
+  $('#sVoiceRuby').addEventListener('change',e=>{ cfg.voiceRuby=e.target.value.trim()||null; saveCfg(); });
   $('#sRate').addEventListener('input',e=>{ cfg.voiceRate=+e.target.value/100; $('#rateNote').textContent=e.target.value+'%'; saveCfg(); });
   $('#sRead').addEventListener('change',e=>{ cfg.readAloud=e.target.checked; saveCfg(); if(!cfg.readAloud) V.stopSpeaking(); });
   $('#sAdult').addEventListener('change',e=>{
@@ -295,7 +315,7 @@ function intro(){
   render();
 }
 function boot(){
-  render(); intro(); syncAdult();
+  render(); intro(); syncAdult(); refreshAutoVoices();
   $('#lbarFill').style.width='100%';
   setTimeout(()=>{ $('#loader').classList.add('out'); },400);
   setTimeout(()=>warmModels(),1200);
