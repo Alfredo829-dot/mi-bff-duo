@@ -6,7 +6,7 @@ const VERSION='1.0.0';
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
 
-let cfg=Object.assign({voice:'es-MX',voiceRate:1,sysVoice:null,voiceNia:null,voiceRuby:null,readAloud:false,dev:false,persona:'',target:'both',adult:false},LS.get('bffduo_cfg',{}));
+let cfg=Object.assign({voice:'es-MX',voiceRate:1,sysVoice:null,voiceNia:null,voiceRuby:null,readAloud:true,dev:false,persona:'',target:'both',adult:false},LS.get('bffduo_cfg',{}));
 if(!['nia','ruby','both'].includes(cfg.target)) cfg.target='both';
 let hist=LS.get('bffduo_hist',[]);
 const saveCfg=()=>LS.set('bffduo_cfg',cfg), saveHist=()=>LS.set('bffduo_hist',hist.slice(-200));
@@ -38,17 +38,18 @@ function reactOther(charId){
   el.classList.remove('react'); void el.offsetWidth; el.classList.add('react');
 }
 let bubbleUntil=0;
-function say(text,ms){ const b=$('#bubble'); if(!b) return; b.textContent=text; b.classList.remove('hide'); bubbleUntil=performance.now()+(ms||Math.min(9000,1800+text.length*55)); setTimeout(()=>{ if(performance.now()>bubbleUntil) b.classList.add('hide'); },ms||4000); }
+function say(text,ms){ return; } // burbuja desactivada: nada de texto flotando entre las fotos
+const fmtTime=t=>{ if(!t) return ''; const d=new Date(t); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); };
 
 // ---------- chat ----------
-function push(m){ hist.push(m); saveHist(); render(); }
+function push(m){ if(!m.t) m.t=Date.now(); hist.push(m); saveHist(); render(); }
 function render(){
   const box=$('#msgs'); if(!box) return;
   box.innerHTML=hist.slice(-200).map(m=>{
     if(m.role==='sys') return `<div class="msg sys">${esc(m.content)}</div>`;
-    if(m.role==='user') return `<div class="msg user">${esc(m.content)}</div>`;
+    if(m.role==='user') return `<div class="msg user">${esc(m.content)}<span class="time">${fmtTime(m.t)}</span></div>`;
     const who=m.who||'nia'; const name=who==='ruby'?'Ruby':'Nia';
-    return `<div class="msg ${who}"><span class="who">${esc(name)}${m.via?` · ${esc(m.via)}`:''}</span>${esc(m.content)}${m.err?`<span class="err"><br>${esc(m.err)}</span>`:''}</div>`;
+    return `<div class="msg ${who}"><span class="who">${esc(name)}${m.via?` · ${esc(m.via)}`:''}</span>${esc(m.content)}${m.err?`<span class="err"><br>${esc(m.err)}</span>`:''}<span class="time">${fmtTime(m.t)}</span></div>`;
   }).join('');
   box.scrollTop=box.scrollHeight;
 }
@@ -110,12 +111,6 @@ async function send(text, opts={}){
       push({role:'assistant',who:charId,content:r.text,via:r.via});
       say(r.text); speakFor(charId,r.text);
       if(physAct) reactOther(charId);
-      // La otra reacciona breve cuando hablan las dos.
-      if(targets.length>1 && charId==='nia'){
-        await sleep(350);
-        const react=await askOne('ruby', `Nia acaba de decir: "${r.text}". Reacciona en UNA frase corta, en personaje, sin repetir lo mismo.`, {skipTailPush:true}).catch(()=>null);
-        if(react && react.text){ push({role:'assistant',who:'ruby',content:react.text,via:react.via}); say(react.text); speakFor('ruby',react.text); }
-      }
     }
     if(hist.filter(m=>m.role==='user').length%6===0) updateProfile(hist.filter(m=>m.role==='user').slice(-10).map(m=>m.content), targets[0]).catch(()=>{});
   }catch(e){
@@ -304,18 +299,24 @@ function openSettings(){
 }
 const syncAdult=()=>document.body.classList.toggle('adult',!!cfg.adult);
 
-// ---------- intro / idle ----------
+// ---------- intro: el chat empieza vacio, ellas no empiezan solas ----------
 function intro(){
-  const h=new Date().getHours();
-  const saludo=h>=6&&h<12?'Buenos dias':h<12||h>=20?'Buenas noches':'Buenas tardes';
-  if(!hist.length){
-    push({role:'assistant',who:'nia',content:`${saludo}, wey 😊 Soy Nia, y ella es Ruby. Estamos las dos aqui, ¿que hacemos hoy?`,via:'nia'});
-    push({role:'assistant',who:'ruby',content:`Yo soy Ruby, la atrevida del duo 😏 Cuentanos todo, ¿a quien le hablas primero, a mi o a Nia?`,via:'ruby'});
-  }
   render();
 }
+// ---------- boton de voz en la barra ----------
+function syncVoiceBtn(){
+  const b=$('#voiceBtn'); if(!b) return;
+  b.textContent=cfg.readAloud?'🔊':'🔇';
+}
+function toggleVoice(){
+  cfg.readAloud=!cfg.readAloud; saveCfg(); syncVoiceBtn();
+  if(cfg.readAloud){
+    V.unlockAudio(); refreshAutoVoices();
+    V.speak('Hola, soy Nia, ¿me escuchas?',{pitch:1.15,rate:cfg.voiceRate,voiceName:cfg.voiceNia||autoVoices.nia||cfg.sysVoice||null});
+  } else V.stopSpeaking();
+}
 function boot(){
-  render(); intro(); syncAdult(); refreshAutoVoices();
+  render(); intro(); syncAdult(); refreshAutoVoices(); syncVoiceBtn();
   $('#lbarFill').style.width='100%';
   setTimeout(()=>{ $('#loader').classList.add('out'); },400);
   setTimeout(()=>warmModels(),1200);
@@ -331,6 +332,7 @@ $('#input').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const v=e.targe
 $('#photoBtn').addEventListener('click',()=>$('#photoInput').click());
 $('#photoInput').addEventListener('change',e=>{ const f=e.target.files?.[0]; if(f) sendPhoto(f); e.target.value=''; });
 $('#micBtn').addEventListener('click',toggleMic);
+$('#voiceBtn').addEventListener('click',toggleVoice);
 $('#autoBtn').addEventListener('click',toggleAuto);
 $('#settingsBtn').addEventListener('click',openSettings);
 $('#dice').addEventListener('click',()=>{ if(!cfg.adult||busy) return; V.unlockAudio(); proposeScenario(); });
