@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mi BFF Duo — Nia y Ruby</title>
+<meta name="description" content="Nia y Ruby, tus dos BFF virtuales en el mismo cuarto. Chatea con una, con la otra, o con las dos.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b1020">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+  <div id="bar">
+    <h1>Mi BFF <span>Duo</span></h1>
+    <span class="sub">Nia · Ruby</span>
+    <span class="sp"></span>
+    <button id="dice" title="Sorpréndeme (solo +18)">🎲</button>
+    <button id="micBtn" title="Hablar con micrófono">🎙️</button>
+    <button id="settingsBtn" title="Ajustes">⚙️</button>
+  </div>
+
+  <div id="stage">
+    <div class="room" aria-hidden="true">
+      <div class="city"></div>
+      <div class="neon">Nia · Ruby<br>juntas en el cuarto</div>
+      <div class="floor"></div>
+    </div>
+
+    <div class="duo" id="duo">
+      <div class="char nia" id="char-nia">
+        <img src="img/nia.jpg" alt="Nia, pelo largo plata y negro, top negro y shorts negros">
+        <div class="typing hidden" id="typing-nia">Nia escribe…</div>
+        <div class="name"><b>Nia</b><span>Tranquila y dulce</span><span class="prov">Gemini · ve fotos</span><span class="bars"><i></i><i></i><i></i></span></div>
+      </div>
+      <div class="char ruby" id="char-ruby">
+        <img src="img/ruby.jpg" alt="Ruby, pelo largo rojo y blanco, top negro y shorts negros">
+        <div class="typing hidden" id="typing-ruby">Ruby escribe…</div>
+        <div class="name"><b>Ruby</b><span>Atrevida y directa</span><span class="prov">Groq · rápida</span><span class="bars"><i></i><i></i><i></i></span></div>
+      </div>
+    </div>
+
+    <div id="bubble" class="hide"></div>
+  </div>
+
+  <div id="chat">
+    <div id="target">
+      <button data-target="nia">💜 Nia</button>
+      <button data-target="ruby">❤️ Ruby</button>
+      <button data-target="both" class="active">💜❤️ Ambas</button>
+    </div>
+    <div id="msgs" aria-live="polite"></div>
+    <div id="composer">
+      <button id="photoBtn" title="Mandar foto (la comenta Nia con Gemini)">📷</button>
+      <input id="input" type="text" placeholder="Escribe… o di &quot;investiga …&quot;" autocomplete="off">
+      <button id="sendBtn" class="primary">Enviar</button>
+    </div>
+    <input id="photoInput" type="file" accept="image/*" class="hidden">
+  </div>
+</div>
+
+<div id="loader"><div>Mi BFF Duo</div><div class="lbar"><i id="lbarFill"></i></div><div id="lname">Nia y Ruby te están esperando…</div></div>
+
+<div id="sheet" class="sheet hidden"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
