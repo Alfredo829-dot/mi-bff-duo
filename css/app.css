@@ -2,7 +2,7 @@
 *{box-sizing:border-box}
 :root{--barH:56px;--chatH:38vh;--panelW:400px;--pink:#ff6ec7;--violet:#7a3fb0;--bg:#0b1020}
 html,body{margin:0;padding:0;height:100%;background:var(--bg);color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;overflow:hidden}
-#app{height:100vh;display:flex;flex-direction:column}
+#app{height:100vh;height:100dvh;display:flex;flex-direction:column}
 #bar{height:var(--barH);display:flex;align-items:center;gap:10px;padding:0 12px;background:rgba(10,12,28,.92);border-bottom:1px solid rgba(255,110,199,.25);z-index:5}
 #bar h1{font-size:17px;margin:0;letter-spacing:.3px}
 #bar h1 span{color:var(--pink)}
@@ -71,7 +71,7 @@ button.active{background:linear-gradient(135deg,#ff6ec7,#7a3fb0);border:none}
 .msg.sys{align-self:center;background:transparent;color:#ffb3dd;font-size:13px;text-align:center}
 .msg .who{font-size:11px;opacity:.75;display:block;margin-bottom:2px}
 .msg .err{font-size:12px;opacity:.8}
-#composer{display:flex;gap:8px;padding:10px;border-top:1px solid rgba(255,255,255,.1)}
+#composer{display:flex;gap:8px;padding:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.1)}
 #composer input{flex:1;background:#141a33;color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:11px 12px;font:inherit}
 #target{display:flex;gap:6px;padding:8px 10px 0}
 #target button{flex:1;padding:7px}
